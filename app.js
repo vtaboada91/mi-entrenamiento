@@ -1021,3 +1021,79 @@ botonImportar.addEventListener("click", async function() {
             "❌ No se pudo importar: " + error.message;
     }
 });
+
+/* PASO 14: ELIMINAR HISTORIAL Y REINICIAR APP */
+
+(function configurarBorrado() {
+  const contenedor = document.getElementById("historialEntrenamientos");
+  const respaldo = document.getElementById("seccionRespaldo");
+
+  if (!contenedor || !respaldo) return;
+
+  function botonesHistorial() {
+    const tarjetas = contenedor.querySelectorAll(":scope > .rutina");
+
+    tarjetas.forEach((tarjeta, posicion) => {
+      if (tarjeta.querySelector(".borrar-sesion")) return;
+
+      const boton = document.createElement("button");
+      boton.type = "button";
+      boton.className = "borrar-sesion";
+      boton.textContent = "🗑️ Eliminar entrenamiento";
+
+      boton.addEventListener("click", () => {
+        let datos;
+        try {
+          datos = JSON.parse(localStorage.getItem("historialGym") || "[]");
+        } catch {
+          alert("No se pudo leer el historial.");
+          return;
+        }
+
+        if (!Array.isArray(datos)) return;
+
+        const indice = datos.length - 1 - posicion;
+        const sesion = datos[indice];
+        if (!sesion) return;
+
+        if (!confirm("¿Eliminar este entrenamiento del historial?")) return;
+
+        datos.splice(indice, 1);
+        localStorage.setItem("historialGym", JSON.stringify(datos));
+        location.reload();
+      });
+
+      tarjeta.appendChild(boton);
+    });
+  }
+
+  botonesHistorial();
+
+  new MutationObserver(botonesHistorial).observe(contenedor, {
+    childList: true
+  });
+
+  const botonReiniciar = document.createElement("button");
+  botonReiniciar.type = "button";
+  botonReiniciar.textContent = "🗑️ Restablecer toda la aplicación";
+  botonReiniciar.style.background = "#a82323";
+  botonReiniciar.style.color = "white";
+  botonReiniciar.style.marginTop = "20px";
+
+  respaldo.appendChild(botonReiniciar);
+
+  botonReiniciar.addEventListener("click", () => {
+    if (!confirm("¿Eliminar TODAS las rutinas y entrenamientos de este dispositivo?")) return;
+
+    const respuesta = prompt(
+      'Escribe BORRAR para confirmar el restablecimiento:'
+    );
+
+    if (respuesta !== "BORRAR") return;
+
+    ["misRutinas", "historialGym", "entrenamientoActual", "ejercicios"]
+      .forEach(clave => localStorage.removeItem(clave));
+
+    location.reload();
+  });
+})();
