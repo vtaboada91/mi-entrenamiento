@@ -1,0 +1,325 @@
+
+/* Configuración general */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    background-color: #10151f;
+    color: #ffffff;
+}
+
+/* Encabezado */
+header {
+    background: linear-gradient(135deg, #182538, #2563eb);
+    padding: 45px 20px;
+    text-align: center;
+}
+
+header h1 {
+    font-size: 32px;
+    margin: 0 0 12px;
+}
+
+header p {
+    color: #dbeafe;
+    font-size: 16px;
+}
+
+/* Contenido principal */
+main {
+    max-width: 650px;
+    margin: 35px auto;
+    padding: 0 20px;
+}
+
+main h2 {
+    font-size: 25px;
+    margin-bottom: 25px;
+}
+
+/* Tarjeta de rutina */
+.rutina {
+    background-color: #1e293b;
+    border: 1px solid #334155;
+    padding: 25px;
+    border-radius: 16px;
+    margin-bottom: 25px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+}
+
+.rutina h3 {
+    color: #60a5fa;
+    margin-top: 0;
+}
+
+.rutina p {
+    padding: 12px 0;
+    border-bottom: 1px solid #334155;
+    line-height: 1.5;
+}
+
+.rutina p:last-child {
+    border-bottom: none;
+}
+
+/* Botón principal */
+button {
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: 12px;
+    background-color: #2563eb;
+    color: white;
+    font-size: 17px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+button:hover {
+    background-color: #1d4ed8;
+}
+
+/* Mensajes */
+#mensaje {
+    text-align: center;
+    color: #4ade80;
+    font-weight: bold;
+    margin-top: 20px;
+}
+
+/* Campos para registrar ejercicios */
+label {
+    display: block;
+    margin: 15px 0 7px;
+    color: #cbd5e1;
+    font-weight: bold;
+}
+
+input {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    margin-bottom: 15px;
+    border: 1px solid #475569;
+    border-radius: 10px;
+    background-color: #0f172a;
+    color: white;
+    font-size: 16px;
+}
+
+input:focus {
+    outline: 2px solid #60a5fa;
+    border-color: #60a5fa;
+}
+
+#listaEjercicios .rutina {
+    margin-bottom: 15px;
+}
+
+#listaEjercicios button {
+    background-color: #dc2626;
+    margin-top: 10px;
+}
+
+#listaEjercicios button:hover {
+    background-color: #b91c1c;
+}
+
+/* Ocultar secciones que todavía no se utilizan */
+[hidden] {
+    display: none !important;
+}
+
+/* Espacio entre rutinas */
+#listaRutinas .rutina {
+    margin-bottom: 18px;
+}
+
+/* Botón para regresar */
+#cerrarRutina {
+    margin-top: 20px;
+    background-color: #475569;
+}
+
+/* Entrenamiento activo */
+#sesionActiva {
+    margin-top: 20px;
+    padding: 15px;
+    border: 1px solid #22c55e;
+    border-radius: 12px;
+    background-color: #142c25;
+}
+
+#sesionActiva h3 {
+    color: #4ade80;
+}
+
+#finalizarEntrenamiento {
+    background-color: #16a34a;
+}
+
+#iniciarEntrenamiento:disabled {
+    background-color: #475569;
+    cursor: not-allowed;
+}
+
+/* Historial */
+#historialEntrenamientos .rutina h3 {
+    color: #60a5fa;
+}
+
+/* PASO 10: Registro de series */
+
+.fila-serie {
+    display: grid;
+    grid-template-columns: 65px 1fr 1fr 35px;
+    gap: 10px;
+    align-items: center;
+    margin: 12px 0;
+}
+
+.fila-serie span {
+    font-size: 13px;
+    color: #cbd5e1;
+}
+
+.fila-serie input[type="number"] {
+    min-width: 0;
+    margin: 0;
+    padding: 10px;
+    text-align: center;
+}
+
+.fila-serie input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+    margin: auto;
+    accent-color: #22c55e;
+    cursor: pointer;
+}
+
+#registroSeries {
+    margin-top: 20px;
+}
+
+#registroSeries .rutina {
+    margin-bottom: 20px;
+}
+
+#registroSeries .rutina h3 {
+    color: #60a5fa;
+}
+
+#historialEntrenamientos p {
+    overflow-wrap: anywhere;
+}
+
+/* PASO 11: Referencia del entrenamiento anterior */
+
+.referencia-anterior {
+    background-color: #163126;
+    border: 1px solid #22c55e;
+    border-radius: 12px;
+    padding: 14px;
+    margin: 15px 0;
+}
+
+.referencia-anterior strong {
+    color: #4ade80;
+}
+
+.referencia-anterior p {
+    color: #d1fae5;
+    font-size: 14px;
+    margin-bottom: 0;
+    overflow-wrap: anywhere;
+}
+
+/* PASO 12: GRÁFICAS */
+
+#seccionProgreso {
+    margin-top: 35px;
+}
+
+#seleccionarEjercicio {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    margin: 12px 0 20px;
+    background-color: #0f172a;
+    color: white;
+    border: 1px solid #475569;
+    border-radius: 10px;
+    font-size: 16px;
+}
+
+.contenedor-grafica {
+    position: relative;
+    width: 100%;
+    height: 300px;
+    margin-top: 20px;
+}
+
+#resumenProgreso {
+    color: #4ade80;
+    font-weight: bold;
+}
+
+#mensajeProgreso {
+    color: #94a3b8;
+    font-size: 14px;
+    text-align: center;
+}
+
+/* PASO 13: COPIA DE SEGURIDAD */
+
+#seccionRespaldo {
+    margin-top: 35px;
+}
+
+#exportarDatos {
+    background-color: #16a34a;
+    margin: 15px 0;
+}
+
+#importarDatos {
+    background-color: #2563eb;
+    margin-top: 12px;
+}
+
+#archivoRespaldo {
+    background-color: #0f172a;
+    padding: 15px;
+    color: white;
+}
+
+#mensajeRespaldo {
+    margin-top: 15px;
+    color: #4ade80;
+    font-weight: bold;
+}
+
+/* PASO 14: EDITAR Y ELIMINAR RUTINAS */
+
+.boton-editar {
+    background-color: #475569;
+    margin-top: 10px;
+}
+
+.boton-editar:hover {
+    background-color: #64748b;
+}
+
+.boton-eliminar {
+    background-color: #dc2626;
+    margin-top: 10px;
+}
+
+.boton-eliminar:hover {
+    background-color: #b91c1c;
+}
