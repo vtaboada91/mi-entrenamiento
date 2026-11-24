@@ -10,6 +10,33 @@ const listaEjercicios = document.getElementById("listaEjercicios");
 let rutinas = [];
 let rutinaSeleccionada = null;
 
+// Vista concentrada: al abrir una rutina se oculta el resto de la aplicación.
+const formularioEjercicio = document.getElementById("formularioEjercicio");
+const alternarFormulario = document.getElementById("alternarFormulario");
+function cambiarFormulario(mostrar) {
+    formularioEjercicio.hidden = !mostrar;
+    alternarFormulario.setAttribute("aria-expanded", String(mostrar));
+    alternarFormulario.textContent = mostrar ? "✕ Cerrar formulario" : "＋ Agregar ejercicio";
+}
+alternarFormulario.addEventListener("click", function() {
+    cambiarFormulario(formularioEjercicio.hidden);
+});
+function ajustarVistaRutina() {
+    document.querySelector("main").classList.toggle("modo-rutina", Boolean(rutinaSeleccionada));
+}
+
+
+// Los valores internos se conservan en kg para mantener compatibilidad con datos anteriores.
+// Cada ejercicio y serie conserva su unidad de visualización por separado.
+const FACTOR_LIBRAS = 2.2046226218;
+function unidadValida(unidad) { return unidad === "lb" ? "lb" : "kg"; }
+function aMostrar(kg, unidad = "kg") {
+    return Number((Number(kg) * (unidadValida(unidad) === "lb" ? FACTOR_LIBRAS : 1)).toFixed(2));
+}
+function aKg(valor, unidad = "kg") { return unidadValida(unidad) === "lb" ? valor / FACTOR_LIBRAS : valor; }
+function pesoTexto(kg, unidad = "kg") { return aMostrar(kg, unidad) + " " + unidadValida(unidad); }
+const selectorUnidadEjercicio = document.getElementById("unidadPesoEjercicio");
+
 // Cargar rutinas guardadas
 try {
     const datos = JSON.parse(localStorage.getItem("misRutinas"));
@@ -106,6 +133,10 @@ botonEliminar.textContent = "🗑️ Eliminar";
 botonEliminar.className = "boton-eliminar";
 
 botonEliminar.addEventListener("click", function() {
+    if (entrenamientoActual && entrenamientoActual.rutinaId === rutina.id) {
+        alert("Finaliza el entrenamiento en curso antes de eliminar esta rutina.");
+        return;
+    }
 
     const confirmar = confirm(
         "¿Seguro que deseas eliminar la rutina '" +
@@ -126,6 +157,8 @@ botonEliminar.addEventListener("click", function() {
     ) {
         rutinaSeleccionada = null;
         detalleRutina.hidden = true;
+        ajustarVistaRutina();
+        actualizarSesion();
     }
 
     guardarRutinas();
@@ -172,8 +205,11 @@ function abrirRutina(id) {
 
     tituloRutina.textContent = rutinaSeleccionada.nombre;
     detalleRutina.hidden = false;
+    ajustarVistaRutina();
+    cambiarFormulario(false);
 
     mostrarEjercicios();
+    actualizarSesion();
     detalleRutina.scrollIntoView({ behavior: "smooth" });
 }
 
@@ -189,7 +225,8 @@ document.getElementById("guardarEjercicio")
 
     const series = Number(seriesTexto);
     const repeticiones = Number(repTexto);
-    const peso = Number(pesoTexto);
+    const unidad = unidadValida(selectorUnidadEjercicio.value);
+    const peso = aKg(Number(pesoTexto), unidad);
 
     if (
         nombre === "" ||
@@ -208,10 +245,19 @@ document.getElementById("guardarEjercicio")
         nombre: nombre,
         series: series,
         repeticiones: repeticiones,
-        peso: peso
+        peso: peso,
+        unidadPeso: unidad
     });
 
     guardarRutinas();
+    // Si la sesión de esta rutina ya comenzó, incorporar el nuevo ejercicio ahora.
+    if (entrenamientoActual && entrenamientoActual.rutinaId === rutinaSeleccionada.id) {
+        entrenamientoActual.ejercicios.push(prepararSeries([
+            rutinaSeleccionada.ejercicios[rutinaSeleccionada.ejercicios.length - 1]
+        ])[0]);
+        guardarSesionActual();
+        actualizarSesion();
+    }
     mostrarEjercicios();
     mostrarRutinas();
 
@@ -219,6 +265,7 @@ document.getElementById("guardarEjercicio")
     document.getElementById("series").value = "";
     document.getElementById("repeticiones").value = "";
     document.getElementById("peso").value = "";
+    cambiarFormulario(false);
 });
 
 function mostrarEjercicios() {
@@ -237,12 +284,16 @@ function mostrarEjercicios() {
         detalles.textContent =
             ejercicio.series + " series × " +
             ejercicio.repeticiones + " repeticiones — " +
-            ejercicio.peso + " kg";
+            pesoTexto(ejercicio.peso, ejercicio.unidadPeso);
 
         const eliminar = document.createElement("button");
         eliminar.textContent = "Eliminar ejercicio";
 
         eliminar.addEventListener("click", function() {
+            if (entrenamientoActual && entrenamientoActual.rutinaId === rutinaSeleccionada.id) {
+                alert("Durante una sesión puedes añadir ejercicios. Para quitar uno del plan, termina primero la sesión.");
+                return;
+            }
             rutinaSeleccionada.ejercicios.splice(indice, 1);
             guardarRutinas();
             mostrarEjercicios();
@@ -262,6 +313,8 @@ document.getElementById("cerrarRutina")
     .addEventListener("click", function() {
         detalleRutina.hidden = true;
         rutinaSeleccionada = null;
+        ajustarVistaRutina();
+        actualizarSesion();
         window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -317,6 +370,7 @@ function prepararSeries(ejercicios) {
                     return {
                         numero: indice + 1,
                         peso: ejercicio.peso,
+                        unidadPeso: unidadValida(ejercicio.unidadPeso),
                         repeticiones: ejercicio.repeticiones,
                         completada: false
                     };
@@ -342,6 +396,7 @@ botonIniciar.addEventListener("click", function() {
 
     entrenamientoActual = {
         id: "sesion-" + Date.now(),
+        rutinaId: rutinaSeleccionada.id,
         rutina: rutinaSeleccionada.nombre,
         inicio: new Date().toISOString(),
         ejercicios: prepararSeries(
@@ -357,10 +412,20 @@ botonIniciar.addEventListener("click", function() {
 function actualizarSesion() {
     const activa = entrenamientoActual !== null;
 
-    sesionActiva.hidden = !activa;
+    // Mostrar la sesión solo dentro de la rutina correspondiente.
+    const mostrandoSesion = activa && rutinaSeleccionada && (
+        entrenamientoActual.rutinaId === rutinaSeleccionada.id ||
+        (!entrenamientoActual.rutinaId && entrenamientoActual.rutina === rutinaSeleccionada.nombre)
+    );
+    sesionActiva.hidden = !mostrandoSesion;
+    // Mientras se registran series mostramos solo las tarjetas editables,
+    // sin repetir todo el listado de ejercicios del plan.
+    document.getElementById("seccionEjerciciosPlan").hidden = Boolean(mostrandoSesion);
+    botonIniciar.hidden = Boolean(mostrandoSesion);
     botonIniciar.disabled = activa;
+    botonIniciar.textContent = activa ? "▶ Ya hay un entrenamiento en curso" : "▶ Iniciar entrenamiento";
 
-    if (!activa) {
+    if (!mostrandoSesion) {
         registroSeries.innerHTML = "";
         return;
     }
@@ -378,22 +443,38 @@ function mostrarRegistroSeries() {
     registroSeries.innerHTML = "";
 
     entrenamientoActual.ejercicios.forEach(
-        function(ejercicio) {
+        function(ejercicio, indiceEjercicio) {
 
         const tarjeta = document.createElement("div");
         tarjeta.className = "rutina";
 
-        const titulo = document.createElement("h3");
-        titulo.textContent = ejercicio.nombre;
-        tarjeta.appendChild(titulo);
+        const encabezado = document.createElement("button");
+        encabezado.type = "button";
+        encabezado.className = "encabezado-ejercicio";
+        const completas = ejercicio.seriesRealizadas.filter(s => s.completada).length;
+        const plegado = Array.isArray(entrenamientoActual.plegados) &&
+            entrenamientoActual.plegados.includes(indiceEjercicio);
+        encabezado.textContent = (plegado ? "▸ " : "▾ ") + ejercicio.nombre +
+            " (" + completas + "/" + ejercicio.seriesRealizadas.length + ")";
+        const contenido = document.createElement("div");
+        contenido.hidden = plegado;
+        encabezado.addEventListener("click", function() {
+            if (!Array.isArray(entrenamientoActual.plegados)) entrenamientoActual.plegados = [];
+            const idx = entrenamientoActual.plegados.indexOf(indiceEjercicio);
+            if (idx >= 0) entrenamientoActual.plegados.splice(idx, 1);
+            else entrenamientoActual.plegados.push(indiceEjercicio);
+            guardarSesionActual();
+            mostrarRegistroSeries();
+        });
+        tarjeta.appendChild(encabezado);
 
         const objetivo = document.createElement("p");
         objetivo.textContent =
             "Objetivo: " + ejercicio.series +
             " series × " + ejercicio.repeticiones +
-            " repeticiones — " + ejercicio.peso + " kg";
+            " repeticiones — " + pesoTexto(ejercicio.peso, ejercicio.unidadPeso);
 
-        tarjeta.appendChild(objetivo);
+        contenido.appendChild(objetivo);
 
         // Buscar el último registro de este ejercicio
         const sesionAnterior = [...historial].reverse().find(
@@ -429,13 +510,13 @@ function mostrarRegistroSeries() {
             const detalleAnterior = document.createElement("p");
             detalleAnterior.textContent = anteriores
                 .map(serie =>
-                    serie.peso + " kg × " +
+                    pesoTexto(serie.peso, serie.unidadPeso) + " × " +
                     serie.repeticiones + " reps"
                 )
                 .join(" | ");
 
             referencia.append(tituloAnterior, detalleAnterior);
-            tarjeta.appendChild(referencia);
+            contenido.appendChild(referencia);
         }
 
         ejercicio.seriesRealizadas.forEach(function(serie) {
@@ -450,8 +531,31 @@ function mostrarRegistroSeries() {
             campoPeso.type = "number";
             campoPeso.min = "0";
             campoPeso.step = "0.5";
-            campoPeso.value = serie.peso;
-            campoPeso.setAttribute("aria-label", "Peso en kg");
+            const unidadSerie = unidadValida(serie.unidadPeso || ejercicio.unidadPeso);
+            campoPeso.value = aMostrar(serie.peso, unidadSerie);
+            campoPeso.setAttribute("aria-label", "Peso de la serie " + serie.numero);
+
+            const selectorSerie = document.createElement("select");
+            selectorSerie.className = "selector-unidad-serie";
+            selectorSerie.setAttribute("aria-label", "Unidad de peso de la serie " + serie.numero);
+            [["kg", "kg"], ["lb", "lb"]].forEach(function(opcion) {
+                const elemento = document.createElement("option");
+                elemento.value = opcion[0];
+                elemento.textContent = opcion[1];
+                selectorSerie.appendChild(elemento);
+            });
+            selectorSerie.value = unidadSerie;
+            // Al cambiar de unidad se convierte el número visible sin alterar el peso real.
+            selectorSerie.addEventListener("change", function() {
+                const unidadAnterior = unidadValida(serie.unidadPeso || ejercicio.unidadPeso);
+                const dato = Number(campoPeso.value);
+                if (campoPeso.value !== "" && Number.isFinite(dato) && dato >= 0) {
+                    serie.peso = aKg(dato, unidadAnterior);
+                }
+                serie.unidadPeso = selectorSerie.value;
+                campoPeso.value = aMostrar(serie.peso, serie.unidadPeso);
+                guardarSesionActual();
+            });
 
             const campoReps = document.createElement("input");
             campoReps.type = "number";
@@ -477,11 +581,12 @@ function mostrarRegistroSeries() {
                     !Number.isFinite(valor) ||
                     valor < 0
                 ) {
-                    campoPeso.value = serie.peso;
+                    campoPeso.value = aMostrar(serie.peso, selectorSerie.value);
                     return;
                 }
 
-                serie.peso = valor;
+                serie.peso = aKg(valor, selectorSerie.value);
+                serie.unidadPeso = selectorSerie.value;
                 guardarSesionActual();
             });
 
@@ -520,21 +625,27 @@ function mostrarRegistroSeries() {
                     return;
                 }
 
-                serie.peso = peso;
+                serie.peso = aKg(peso, selectorSerie.value);
+                serie.unidadPeso = selectorSerie.value;
                 serie.repeticiones = reps;
                 serie.completada = completada.checked;
 
                 guardarSesionActual();
+                encabezado.textContent = (plegado ? "▸ " : "▾ ") + ejercicio.nombre +
+                    " (" + ejercicio.seriesRealizadas.filter(s => s.completada).length +
+                    "/" + ejercicio.seriesRealizadas.length + ")";
             });
 
             fila.appendChild(numero);
             fila.appendChild(campoPeso);
+            fila.appendChild(selectorSerie);
             fila.appendChild(campoReps);
             fila.appendChild(completada);
 
-            tarjeta.appendChild(fila);
+            contenido.appendChild(fila);
         });
 
+        tarjeta.appendChild(contenido);
         registroSeries.appendChild(tarjeta);
     });
 }
@@ -597,65 +708,58 @@ botonFinalizar.addEventListener("click", function() {
     alert("✅ ¡Entrenamiento guardado!");
 });
 
-// Mostrar historial de entrenamientos
+// Mostrar historial de entrenamientos: cada sesión es plegable por separado.
 function mostrarHistorial() {
     historialContenedor.innerHTML = "";
 
     if (historial.length === 0) {
-        historialContenedor.textContent =
-            "Todavía no tienes entrenamientos completados.";
+        historialContenedor.textContent = "Todavía no tienes entrenamientos completados.";
         return;
     }
 
     [...historial].reverse().forEach(function(sesion) {
+        // Mantener .rutina como hijo directo preserva las opciones existentes
+        // de eliminar una sesión del historial.
         const tarjeta = document.createElement("div");
-        tarjeta.className = "rutina";
+        tarjeta.className = "rutina tarjeta-historial";
 
-        const titulo = document.createElement("h3");
-        titulo.textContent = sesion.rutina;
+        const desplegable = document.createElement("details");
+        desplegable.className = "sesion-historial-plegable";
+        const encabezado = document.createElement("summary");
+        const titulo = document.createElement("strong");
+        titulo.textContent = sesion.rutina || "Entrenamiento";
+        const fecha = document.createElement("span");
+        fecha.textContent = "📅 " + new Date(sesion.inicio).toLocaleString("es-MX");
+        const indicador = document.createElement("span");
+        indicador.className = "indicador-sesion";
+        indicador.setAttribute("aria-hidden", "true");
+        indicador.textContent = "⌄";
+        encabezado.append(titulo, fecha, indicador);
+        desplegable.appendChild(encabezado);
 
-        const fecha = document.createElement("p");
-        fecha.textContent =
-            "📅 " + new Date(sesion.inicio)
-                .toLocaleString("es-MX");
-
+        const contenido = document.createElement("div");
+        contenido.className = "contenido-sesion-historial";
         const duracion = document.createElement("p");
-        duracion.textContent =
-            "⏱ Duración: " +
-            sesion.duracionMinutos + " minutos";
+        duracion.textContent = "⏱ Duración: " + sesion.duracionMinutos + " minutos";
+        contenido.appendChild(duracion);
 
-        tarjeta.append(titulo, fecha, duracion);
-
-        sesion.ejercicios.forEach(function(ejercicio) {
+        (Array.isArray(sesion.ejercicios) ? sesion.ejercicios : []).forEach(function(ejercicio) {
             const detalle = document.createElement("p");
-
             if (Array.isArray(ejercicio.seriesRealizadas)) {
-                const completadas = ejercicio.seriesRealizadas
-                    .filter(serie => serie.completada);
-
-                detalle.textContent =
-                    ejercicio.nombre + ": " +
-                    completadas.map(serie =>
-                        serie.peso + " kg × " +
-                        serie.repeticiones + " reps"
-                    ).join(" | ");
-
-                if (completadas.length === 0) {
-                    detalle.textContent =
-                        ejercicio.nombre + ": Sin series completadas";
-                }
+                const completadas = ejercicio.seriesRealizadas.filter(serie => serie.completada);
+                detalle.textContent = ejercicio.nombre + ": " +
+                    (completadas.length ? completadas.map(serie =>
+                        pesoTexto(serie.peso, serie.unidadPeso) + " × " +
+                        serie.repeticiones + " reps").join(" | ") : "Sin series completadas");
             } else {
-                // Compatibilidad con sesiones anteriores
-                detalle.textContent =
-                    ejercicio.nombre + ": " +
-                    ejercicio.series + " × " +
-                    ejercicio.repeticiones + " — " +
-                    ejercicio.peso + " kg (planificado)";
+                detalle.textContent = ejercicio.nombre + ": " + ejercicio.series +
+                    " × " + ejercicio.repeticiones + " — " +
+                    pesoTexto(ejercicio.peso) + " (planificado)";
             }
-
-            tarjeta.appendChild(detalle);
+            contenido.appendChild(detalle);
         });
-
+        desplegable.appendChild(contenido);
+        tarjeta.appendChild(desplegable);
         historialContenedor.appendChild(tarjeta);
     });
 }
@@ -819,8 +923,8 @@ function mostrarGraficaProgreso() {
 
     const resumen = document.createElement("p");
     resumen.textContent =
-        "🏆 Mejor peso: " + mejorPeso +
-        " kg | Sesiones registradas: " + datos.length;
+        "🏆 Mejor peso: " + pesoTexto(mejorPeso, "kg") +
+        " | Sesiones registradas: " + datos.length;
 
     resumenProgreso.appendChild(resumen);
 
@@ -843,7 +947,7 @@ function mostrarGraficaProgreso() {
             labels: etiquetas,
             datasets: [{
                 label: "Peso máximo (kg)",
-                data: datos.map(dato => dato.pesoMaximo),
+                data: datos.map(dato => aMostrar(dato.pesoMaximo, "kg")),
                 borderColor: "#60a5fa",
                 backgroundColor: "rgba(96, 165, 250, 0.15)",
                 borderWidth: 3,
@@ -904,6 +1008,7 @@ const mensajeRespaldo = document.getElementById("mensajeRespaldo");
 botonExportar.addEventListener("click", function() {
     const respaldo = {
         version: 1,
+        unidadPeso: "kg", // unidad interna; cada serie almacena su unidad elegida
         aplicacion: "Mi Entrenamiento",
         fechaExportacion: new Date().toISOString(),
         rutinas: rutinas,
@@ -991,6 +1096,9 @@ botonImportar.addEventListener("click", async function() {
         if (!confirmar) return;
 
         // Guardar los datos importados
+        if (datos.unidadPeso === "kg" || datos.unidadPeso === "lb") {
+            localStorage.setItem("unidadPesoGym", datos.unidadPeso);
+        }
         localStorage.setItem(
             "misRutinas",
             JSON.stringify(datos.rutinas)
@@ -1063,7 +1171,9 @@ botonImportar.addEventListener("click", async function() {
         location.reload();
       });
 
-      tarjeta.appendChild(boton);
+      // El botón de eliminar también queda oculto hasta abrir la sesión.
+      const contenido = tarjeta.querySelector(".contenido-sesion-historial");
+      (contenido || tarjeta).appendChild(boton);
     });
   }
 
@@ -1091,9 +1201,125 @@ botonImportar.addEventListener("click", async function() {
 
     if (respuesta !== "BORRAR") return;
 
-    ["misRutinas", "historialGym", "entrenamientoActual", "ejercicios"]
+    ["misRutinas", "historialGym", "entrenamientoActual", "ejercicios", "unidadPesoGym"]
       .forEach(clave => localStorage.removeItem(clave));
 
     location.reload();
   });
 })();
+
+// Al abrir Mi progreso, recalcular el tamaño de la gráfica en su contenedor visible.
+const seccionProgresoPlegable = document.getElementById("seccionProgreso");
+if (seccionProgresoPlegable) {
+    seccionProgresoPlegable.addEventListener("toggle", function() {
+        if (this.open && graficaProgreso && typeof graficaProgreso.resize === "function") {
+            graficaProgreso.resize();
+        }
+    });
+}
+
+
+// v9: Catálogo local de ejercicios. No modifica la estructura de rutinas existente.
+const CATALOGO_EJERCICIOS = [{"nombre":"Press inclinado con mancuernas","grupo":"Pecho","subgrupo":"Superior","equipo":"Mancuernas"},{"nombre":"Press inclinado con barra","grupo":"Pecho","subgrupo":"Superior","equipo":"Barra y pesos libres"},{"nombre":"Press inclinado en máquina","grupo":"Pecho","subgrupo":"Superior","equipo":"Máquinas"},{"nombre":"Aperturas inclinadas","grupo":"Pecho","subgrupo":"Superior","equipo":"Mancuernas"},{"nombre":"Press de banca plano","grupo":"Pecho","subgrupo":"Medio","equipo":"Barra y pesos libres"},{"nombre":"Press plano con mancuernas","grupo":"Pecho","subgrupo":"Medio","equipo":"Mancuernas"},{"nombre":"Press de pecho sentado","grupo":"Pecho","subgrupo":"Medio","equipo":"Máquinas"},{"nombre":"Aperturas en peck deck","grupo":"Pecho","subgrupo":"Medio","equipo":"Máquinas"},{"nombre":"Cruce de poleas a altura media","grupo":"Pecho","subgrupo":"Medio","equipo":"Poleas"},{"nombre":"Press declinado","grupo":"Pecho","subgrupo":"Inferior","equipo":"Barra y pesos libres"},{"nombre":"Fondos para pecho","grupo":"Pecho","subgrupo":"Inferior","equipo":"Peso corporal"},{"nombre":"Cruce de poleas de arriba hacia abajo","grupo":"Pecho","subgrupo":"Inferior","equipo":"Poleas"},{"nombre":"Jalón al pecho","grupo":"Espalda","subgrupo":"Dorsales","equipo":"Poleas"},{"nombre":"Dominadas","grupo":"Espalda","subgrupo":"Dorsales","equipo":"Peso corporal"},{"nombre":"Remo unilateral con mancuerna","grupo":"Espalda","subgrupo":"Dorsales","equipo":"Mancuernas"},{"nombre":"Remo en máquina","grupo":"Espalda","subgrupo":"Dorsales","equipo":"Máquinas"},{"nombre":"Pullover en polea","grupo":"Espalda","subgrupo":"Dorsales","equipo":"Poleas"},{"nombre":"Remo con barra","grupo":"Espalda","subgrupo":"Romboides y espalda media","equipo":"Barra y pesos libres"},{"nombre":"Remo sentado en polea","grupo":"Espalda","subgrupo":"Romboides y espalda media","equipo":"Poleas"},{"nombre":"Remo pecho apoyado","grupo":"Espalda","subgrupo":"Romboides y espalda media","equipo":"Máquinas"},{"nombre":"Hiperextensiones lumbares","grupo":"Espalda","subgrupo":"Espalda baja","equipo":"Peso corporal"},{"nombre":"Peso muerto convencional","grupo":"Espalda","subgrupo":"Espalda baja","equipo":"Barra y pesos libres"},{"nombre":"Press militar con barra","grupo":"Hombros","subgrupo":"Deltoide anterior","equipo":"Barra y pesos libres"},{"nombre":"Press de hombros con mancuernas","grupo":"Hombros","subgrupo":"Deltoide anterior","equipo":"Mancuernas"},{"nombre":"Press de hombros en máquina","grupo":"Hombros","subgrupo":"Deltoide anterior","equipo":"Máquinas"},{"nombre":"Elevaciones laterales","grupo":"Hombros","subgrupo":"Deltoide lateral","equipo":"Mancuernas"},{"nombre":"Elevación lateral en polea","grupo":"Hombros","subgrupo":"Deltoide lateral","equipo":"Poleas"},{"nombre":"Elevación lateral en máquina","grupo":"Hombros","subgrupo":"Deltoide lateral","equipo":"Máquinas"},{"nombre":"Pájaros con mancuernas","grupo":"Hombros","subgrupo":"Deltoide posterior","equipo":"Mancuernas"},{"nombre":"Face pull","grupo":"Hombros","subgrupo":"Deltoide posterior","equipo":"Poleas"},{"nombre":"Peck deck inverso","grupo":"Hombros","subgrupo":"Deltoide posterior","equipo":"Máquinas"},{"nombre":"Encogimientos con mancuernas","grupo":"Hombros","subgrupo":"Trapecio","equipo":"Mancuernas"},{"nombre":"Encogimientos con barra","grupo":"Hombros","subgrupo":"Trapecio","equipo":"Barra y pesos libres"},{"nombre":"Encogimientos en máquina","grupo":"Hombros","subgrupo":"Trapecio","equipo":"Máquinas"},{"nombre":"Curl con barra","grupo":"Bíceps","subgrupo":"Bíceps","equipo":"Barra y pesos libres"},{"nombre":"Curl alternado con mancuernas","grupo":"Bíceps","subgrupo":"Bíceps","equipo":"Mancuernas"},{"nombre":"Curl en polea","grupo":"Bíceps","subgrupo":"Bíceps","equipo":"Poleas"},{"nombre":"Curl predicador en máquina","grupo":"Bíceps","subgrupo":"Bíceps","equipo":"Máquinas"},{"nombre":"Curl martillo","grupo":"Bíceps","subgrupo":"Braquial","equipo":"Mancuernas"},{"nombre":"Curl martillo con cuerda","grupo":"Bíceps","subgrupo":"Braquial","equipo":"Poleas"},{"nombre":"Extensión por encima de la cabeza con mancuerna","grupo":"Tríceps","subgrupo":"Cabeza larga","equipo":"Mancuernas"},{"nombre":"Extensión por encima de la cabeza en polea","grupo":"Tríceps","subgrupo":"Cabeza larga","equipo":"Poleas"},{"nombre":"Press francés con barra","grupo":"Tríceps","subgrupo":"Cabeza larga","equipo":"Barra y pesos libres"},{"nombre":"Jalón de tríceps con cuerda","grupo":"Tríceps","subgrupo":"Cabeza lateral y medial","equipo":"Poleas"},{"nombre":"Extensión de tríceps con barra en polea","grupo":"Tríceps","subgrupo":"Cabeza lateral y medial","equipo":"Poleas"},{"nombre":"Fondos en banco","grupo":"Tríceps","subgrupo":"Cabeza lateral y medial","equipo":"Peso corporal"},{"nombre":"Máquina de tríceps","grupo":"Tríceps","subgrupo":"Cabeza lateral y medial","equipo":"Máquinas"},{"nombre":"Curl de muñeca con barra","grupo":"Antebrazos","subgrupo":"Flexores","equipo":"Barra y pesos libres"},{"nombre":"Curl de muñeca con mancuerna","grupo":"Antebrazos","subgrupo":"Flexores","equipo":"Mancuernas"},{"nombre":"Curl inverso de muñeca","grupo":"Antebrazos","subgrupo":"Extensores","equipo":"Mancuernas"},{"nombre":"Extensión de muñeca con barra","grupo":"Antebrazos","subgrupo":"Extensores","equipo":"Barra y pesos libres"},{"nombre":"Curl inverso con barra","grupo":"Antebrazos","subgrupo":"Braquiorradial y agarre","equipo":"Barra y pesos libres"},{"nombre":"Caminata del granjero","grupo":"Antebrazos","subgrupo":"Braquiorradial y agarre","equipo":"Mancuernas"},{"nombre":"Suspensión en barra","grupo":"Antebrazos","subgrupo":"Braquiorradial y agarre","equipo":"Peso corporal"},{"nombre":"Sentadilla con barra","grupo":"Pierna","subgrupo":"Cuádriceps","equipo":"Barra y pesos libres"},{"nombre":"Sentadilla goblet","grupo":"Pierna","subgrupo":"Cuádriceps","equipo":"Mancuernas"},{"nombre":"Prensa de piernas","grupo":"Pierna","subgrupo":"Cuádriceps","equipo":"Máquinas"},{"nombre":"Extensión de cuádriceps","grupo":"Pierna","subgrupo":"Cuádriceps","equipo":"Máquinas"},{"nombre":"Sentadilla hack","grupo":"Pierna","subgrupo":"Cuádriceps","equipo":"Máquinas"},{"nombre":"Curl femoral sentado","grupo":"Pierna","subgrupo":"Femorales","equipo":"Máquinas"},{"nombre":"Curl femoral acostado","grupo":"Pierna","subgrupo":"Femorales","equipo":"Máquinas"},{"nombre":"Peso muerto rumano con barra","grupo":"Pierna","subgrupo":"Femorales","equipo":"Barra y pesos libres"},{"nombre":"Peso muerto rumano con mancuernas","grupo":"Pierna","subgrupo":"Femorales","equipo":"Mancuernas"},{"nombre":"Sentadilla búlgara","grupo":"Pierna","subgrupo":"Glúteos","equipo":"Mancuernas"},{"nombre":"Zancadas caminando","grupo":"Pierna","subgrupo":"Glúteos","equipo":"Mancuernas"},{"nombre":"Máquina de aductores","grupo":"Pierna","subgrupo":"Aductores","equipo":"Máquinas"},{"nombre":"Aducción de cadera en polea","grupo":"Pierna","subgrupo":"Aductores","equipo":"Poleas"},{"nombre":"Máquina de abductores","grupo":"Pierna","subgrupo":"Abductores","equipo":"Máquinas"},{"nombre":"Abducción de cadera en polea","grupo":"Pierna","subgrupo":"Abductores","equipo":"Poleas"},{"nombre":"Elevación de talones de pie","grupo":"Pierna","subgrupo":"Pantorrillas","equipo":"Máquinas"},{"nombre":"Elevación de talones sentado","grupo":"Pierna","subgrupo":"Pantorrillas","equipo":"Máquinas"},{"nombre":"Elevación de pantorrillas en prensa","grupo":"Pierna","subgrupo":"Pantorrillas","equipo":"Máquinas"},{"nombre":"Elevación de talones a una pierna","grupo":"Pierna","subgrupo":"Pantorrillas","equipo":"Peso corporal"},{"nombre":"Hip thrust con barra","grupo":"Glúteos","subgrupo":"Glúteo mayor","equipo":"Barra y pesos libres"},{"nombre":"Puente de glúteos","grupo":"Glúteos","subgrupo":"Glúteo mayor","equipo":"Peso corporal"},{"nombre":"Patada de glúteo en polea","grupo":"Glúteos","subgrupo":"Glúteo mayor","equipo":"Poleas"},{"nombre":"Máquina de patada de glúteo","grupo":"Glúteos","subgrupo":"Glúteo mayor","equipo":"Máquinas"},{"nombre":"Sentadilla búlgara para glúteos","grupo":"Glúteos","subgrupo":"Glúteo mayor","equipo":"Mancuernas"},{"nombre":"Abducción de cadera en máquina","grupo":"Glúteos","subgrupo":"Glúteo medio y menor","equipo":"Máquinas"},{"nombre":"Abducción de cadera en polea","grupo":"Glúteos","subgrupo":"Glúteo medio y menor","equipo":"Poleas"},{"nombre":"Caminata lateral con banda","grupo":"Glúteos","subgrupo":"Glúteo medio y menor","equipo":"Otros"},{"nombre":"Elevación lateral de pierna","grupo":"Glúteos","subgrupo":"Glúteo medio y menor","equipo":"Peso corporal"},{"nombre":"Crunch abdominal","grupo":"Abdomen","subgrupo":"Recto abdominal","equipo":"Peso corporal"},{"nombre":"Crunch en máquina","grupo":"Abdomen","subgrupo":"Recto abdominal","equipo":"Máquinas"},{"nombre":"Crunch en polea","grupo":"Abdomen","subgrupo":"Recto abdominal","equipo":"Poleas"},{"nombre":"Elevación de piernas colgado","grupo":"Abdomen","subgrupo":"Recto abdominal","equipo":"Peso corporal"},{"nombre":"Giros rusos con mancuerna","grupo":"Abdomen","subgrupo":"Oblicuos","equipo":"Mancuernas"},{"nombre":"Woodchopper en polea","grupo":"Abdomen","subgrupo":"Oblicuos","equipo":"Poleas"},{"nombre":"Plancha lateral","grupo":"Abdomen","subgrupo":"Oblicuos","equipo":"Peso corporal"},{"nombre":"Plancha abdominal","grupo":"Abdomen","subgrupo":"Transverso y core","equipo":"Peso corporal"},{"nombre":"Dead bug","grupo":"Abdomen","subgrupo":"Transverso y core","equipo":"Peso corporal"},{"nombre":"Pallof press","grupo":"Abdomen","subgrupo":"Transverso y core","equipo":"Poleas"}];
+const catalogoGrupo = document.getElementById('catalogoGrupo');
+const catalogoSubgrupo = document.getElementById('catalogoSubgrupo');
+const catalogoEquipo = document.getElementById('catalogoEquipo');
+const catalogoBuscar = document.getElementById('catalogoBuscar');
+const catalogoResultados = document.getElementById('catalogoResultados');
+const catalogoCantidad = document.getElementById('catalogoCantidad');
+const gruposCatalogo = [...new Set(CATALOGO_EJERCICIOS.map(e => e.grupo))];
+gruposCatalogo.forEach(grupo => catalogoGrupo.add(new Option(grupo, grupo)));
+function actualizarSubgruposCatalogo() {
+    const previo = catalogoSubgrupo.value;
+    catalogoSubgrupo.replaceChildren(new Option('Todos los subgrupos', ''));
+    const subgrupos = [...new Set(CATALOGO_EJERCICIOS.filter(e => !catalogoGrupo.value || e.grupo === catalogoGrupo.value).map(e => e.subgrupo))];
+    subgrupos.forEach(sub => catalogoSubgrupo.add(new Option(sub, sub)));
+    if (subgrupos.includes(previo)) catalogoSubgrupo.value = previo;
+    actualizarCatalogo();
+}
+function actualizarCatalogo() {
+    const busqueda = catalogoBuscar.value.trim().toLocaleLowerCase('es');
+    const filtrados = CATALOGO_EJERCICIOS.filter(e =>
+        (!catalogoGrupo.value || e.grupo === catalogoGrupo.value) &&
+        (!catalogoSubgrupo.value || e.subgrupo === catalogoSubgrupo.value) &&
+        (!catalogoEquipo.value || e.equipo === catalogoEquipo.value) &&
+        (!busqueda || (e.nombre + ' ' + e.grupo + ' ' + e.subgrupo + ' ' + e.equipo).toLocaleLowerCase('es').includes(busqueda))
+    );
+    catalogoCantidad.textContent = filtrados.length + ' ejercicio(s) encontrados';
+    catalogoResultados.replaceChildren();
+    filtrados.forEach(e => {
+        const tarjeta = document.createElement('article');
+        tarjeta.className = 'catalogo-tarjeta';
+        const descripcion = document.createElement('div');
+        const titulo = document.createElement('strong');
+        titulo.textContent = e.nombre;
+        const metadatos = document.createElement('small');
+        metadatos.textContent = e.grupo + ' · ' + e.subgrupo + ' · ' + e.equipo;
+        descripcion.append(titulo, metadatos);
+        const boton = document.createElement('button');
+        boton.type = 'button';
+        boton.textContent = 'Usar en mi rutina';
+        boton.addEventListener('click', () => {
+            if (!rutinaSeleccionada) return;
+            document.getElementById('ejercicio').value = e.nombre;
+            cambiarFormulario(true);
+            document.getElementById('catalogoEjercicios').open = false;
+            document.getElementById('series').focus();
+        });
+        tarjeta.append(descripcion, boton);
+        catalogoResultados.appendChild(tarjeta);
+    });
+    if (!filtrados.length) catalogoResultados.textContent = 'No encontramos ejercicios con esos filtros.';
+}
+catalogoGrupo.addEventListener('change', actualizarSubgruposCatalogo);
+[catalogoSubgrupo, catalogoEquipo, catalogoBuscar].forEach(el => el.addEventListener(el === catalogoBuscar ? 'input' : 'change', actualizarCatalogo));
+actualizarSubgruposCatalogo();
+
+// v14: pantalla independiente para consultar las laminas de un grupo muscular.
+const guiaPantalla = document.getElementById('guiaPantalla');
+const volverGuia = document.getElementById('volverGuia');
+const tituloGuia = document.getElementById('guiaPantallaTitulo');
+const guiaContenedor = document.getElementById('seccionGuia');
+let guiaBotonAnterior = null;
+
+function cerrarPantallaGuia() {
+    if (guiaPantalla.hidden) return;
+    guiaPantalla.hidden = true;
+    document.body.classList.remove('guia-pantalla-abierta');
+    guiaContenedor.classList.remove('guia-vista-abierta');
+    document.querySelectorAll('#seccionGuia [data-guia-panel]').forEach(panel => panel.hidden = true);
+    document.querySelectorAll('#seccionGuia [data-guia]').forEach(boton => {
+        boton.classList.remove('activo');
+        boton.setAttribute('aria-pressed', 'false');
+    });
+    if (guiaBotonAnterior && guiaBotonAnterior.isConnected) guiaBotonAnterior.focus();
+}
+
+document.querySelectorAll('#seccionGuia [data-guia]').forEach(boton => {
+    boton.addEventListener('click', () => {
+        guiaBotonAnterior = boton;
+        const seleccionado = boton.dataset.guia;
+        document.querySelectorAll('#seccionGuia [data-guia]').forEach(b => {
+            const activo = b.dataset.guia === seleccionado;
+            b.classList.toggle('activo', activo);
+            b.setAttribute('aria-pressed', String(activo));
+        });
+        document.querySelectorAll('#seccionGuia [data-guia-panel]').forEach(panel => {
+            panel.hidden = panel.dataset.guiaPanel !== seleccionado;
+        });
+        tituloGuia.textContent = boton.querySelector('strong').textContent;
+        guiaContenedor.classList.add('guia-vista-abierta');
+        guiaPantalla.hidden = false;
+        document.body.classList.add('guia-pantalla-abierta');
+        guiaPantalla.scrollTop = 0;
+        volverGuia.focus();
+    });
+});
+volverGuia.addEventListener('click', cerrarPantallaGuia);
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !guiaPantalla.hidden) cerrarPantallaGuia();
+});
+// Si se cierra la guía principal, restablecer la vista de categorías.
+guiaContenedor.addEventListener('toggle', () => {
+    if (!guiaContenedor.open) cerrarPantallaGuia();
+});

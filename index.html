@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mi Entrenamiento</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=15">
 </head>
 <body>
 
@@ -36,15 +36,114 @@
             </button>
         </div>
 
-        <h2>Rutinas guardadas</h2>
-
-        <div id="listaRutinas"></div>
+        <details class="rutina ajustes-plegables" id="seccionRutinasGuardadas">
+            <summary>📋 Rutinas guardadas <span class="indicador-ajustes" aria-hidden="true">⌄</span></summary>
+            <div class="contenido-ajustes" id="contenidoRutinasGuardadas">
+                <div id="listaRutinas"></div>
+            </div>
+        </details>
 
         <section id="detalleRutina" hidden>
             <h2 id="tituloRutina"></h2>
 
-            <div class="rutina">
-                <h3>Agregar ejercicio</h3>
+
+            <details class="rutina ajustes-plegables" id="seccionGuia">
+              <summary>📖 Guía de ejercicios <span class="indicador-ajustes" aria-hidden="true">⌄</span></summary>
+              <div class="contenido-ajustes guia-contenido">
+                <p class="guia-ayuda">Selecciona un grupo muscular. Consulta sus imágenes y después utiliza el catálogo para añadir el ejercicio a tu rutina.</p>
+                <div class="guia-grupos-grid" aria-label="Grupos musculares de la guía">
+               <button type="button" class="guia-grupo-card activo" data-guia="pierna" aria-pressed="true"><span class="guia-card-icon" aria-hidden="true">🦵</span><strong>Pierna</strong><small>19 ejercicios</small></button>
+               <button type="button" class="guia-grupo-card" data-guia="gluteos" aria-pressed="false"><span class="guia-card-icon" aria-hidden="true">🍑</span><strong>Glúteos</strong><small>9 ejercicios</small></button>
+               <button type="button" class="guia-grupo-card" data-guia="pecho" aria-pressed="false"><span class="guia-card-icon" aria-hidden="true">💪</span><strong>Pecho</strong><small>Próximamente</small></button>
+               <button type="button" class="guia-grupo-card" data-guia="espalda" aria-pressed="false"><span class="guia-card-icon" aria-hidden="true">🏋️</span><strong>Espalda</strong><small>Próximamente</small></button>
+               <button type="button" class="guia-grupo-card" data-guia="hombros" aria-pressed="false"><span class="guia-card-icon" aria-hidden="true">🎯</span><strong>Hombros</strong><small>Próximamente</small></button>
+               <button type="button" class="guia-grupo-card" data-guia="biceps" aria-pressed="false"><span class="guia-card-icon" aria-hidden="true">💪</span><strong>Bíceps</strong><small>Próximamente</small></button>
+               <button type="button" class="guia-grupo-card" data-guia="triceps" aria-pressed="false"><span class="guia-card-icon" aria-hidden="true">💪</span><strong>Tríceps</strong><small>Próximamente</small></button>
+               <button type="button" class="guia-grupo-card" data-guia="antebrazos" aria-pressed="false"><span class="guia-card-icon" aria-hidden="true">🏋️</span><strong>Antebrazos</strong><small>Próximamente</small></button>
+               <button type="button" class="guia-grupo-card" data-guia="abdomen" aria-pressed="false"><span class="guia-card-icon" aria-hidden="true">⚡</span><strong>Abdomen</strong><small>Próximamente</small></button>
+                </div>
+                <div class="guia-paneles" id="guiaPantalla" hidden role="dialog" aria-modal="true" aria-labelledby="guiaPantallaTitulo" tabindex="-1">
+                  <div class="guia-barra-superior">
+                    <button id="volverGuia" type="button" class="guia-volver">← Volver a grupos</button>
+                    <h3 id="guiaPantallaTitulo">Pierna</h3>
+                  </div>
+                  <section class="guia-panel" data-guia-panel="pierna" hidden>
+                    <h3>Pierna</h3>
+<div class="guia-laminas">
+                <article class="guia-lamina">
+                    <h3>Cuádriceps · 5 ejercicios</h3>
+                    <a href="imagenes/guias/pierna-cuadriceps.png" target="_blank" rel="noopener" aria-label="Ampliar la guía de cuádriceps">
+                        <img src="imagenes/guias/pierna-cuadriceps.png" alt="Lámina de cuádriceps: Sentadilla con barra, Sentadilla goblet, Prensa de piernas, Extensión de cuádriceps y Sentadilla hack." loading="lazy">
+                    </a>
+                    <p>Toca la imagen para ampliarla.</p>
+                </article>
+                <article class="guia-lamina">
+                    <h3>Femorales y glúteos · 6 ejercicios</h3>
+                    <a href="imagenes/guias/pierna-femorales-gluteos.png" target="_blank" rel="noopener" aria-label="Ampliar la guía de femorales y glúteos">
+                        <img src="imagenes/guias/pierna-femorales-gluteos.png" alt="Lámina de femorales y glúteos: Curl femoral sentado, Curl femoral acostado, Peso muerto rumano con barra, Peso muerto rumano con mancuernas, Sentadilla búlgara y Zancadas caminando." loading="lazy">
+                    </a>
+                    <p>Toca la imagen para ampliarla.</p>
+                </article>
+            </div>
+            <details class="guia-pendientes">
+                <summary>Aductores, abductores y pantorrillas · 8 ejercicios (láminas visuales pendientes)</summary>
+                <p class="guia-ayuda">Ya están registrados en el catálogo. Las ilustraciones técnicas se incorporarán cuando estén verificadas.</p>
+                <div class="guia-faltantes-grid">
+                    <article><h4>Aductores</h4><p>Máquina de aductores</p><p>Aducción de cadera en polea</p></article>
+                    <article><h4>Abductores</h4><p>Máquina de abductores</p><p>Abducción de cadera en polea</p></article>
+                    <article><h4>Pantorrillas</h4><p>Elevación de talones de pie</p><p>Elevación de talones sentado</p><p>Elevación de pantorrillas en prensa</p><p>Elevación de talones a una pierna</p></article>
+                </div>
+            </details>
+                  </section>
+                  <section class="guia-panel" data-guia-panel="gluteos" hidden>
+                    <h3>Glúteos</h3>
+                    <p class="guia-ayuda">Estas láminas muestran los 9 ejercicios del catálogo, con <strong>Hip thrust con barra</strong> como ejercicio 01. Toca cada imagen para ampliarla.</p>
+                    <div class="guia-laminas">
+                      <article class="guia-lamina">
+                        <h3>Glúteo mayor · 5 ejercicios</h3>
+                        <a href="imagenes/guias/gluteo-mayor.jpg" target="_blank" rel="noopener" aria-label="Ampliar guía de glúteo mayor">
+                          <img src="imagenes/guias/gluteo-mayor.jpg" loading="lazy" alt="Guía ilustrada de Hip thrust con barra, Puente de glúteos, Patada de glúteo en polea, Máquina de patada de glúteo y Sentadilla búlgara para glúteos">
+                        </a>
+                      </article>
+                      <article class="guia-lamina">
+                        <h3>Glúteo medio y menor · 4 ejercicios</h3>
+                        <a href="imagenes/guias/gluteo-medio-menor.jpg" target="_blank" rel="noopener" aria-label="Ampliar guía de glúteo medio y menor">
+                          <img src="imagenes/guias/gluteo-medio-menor.jpg" loading="lazy" alt="Guía ilustrada de Abducción de cadera en máquina, Abducción de cadera en polea, Caminata lateral con banda y Elevación lateral de pierna">
+                        </a>
+                      </article>
+                    </div>
+                  </section>
+          <section class="guia-panel" data-guia-panel="pecho" hidden><h3>Pecho</h3><p class="guia-ayuda">La lámina ilustrada de pecho está pendiente. Los ejercicios ya se pueden elegir desde el catálogo de tu rutina.</p></section>
+          <section class="guia-panel" data-guia-panel="espalda" hidden><h3>Espalda</h3><p class="guia-ayuda">La lámina ilustrada de espalda está pendiente. Los ejercicios ya se pueden elegir desde el catálogo de tu rutina.</p></section>
+          <section class="guia-panel" data-guia-panel="hombros" hidden><h3>Hombros</h3><p class="guia-ayuda">La lámina ilustrada de hombros está pendiente. Los ejercicios ya se pueden elegir desde el catálogo de tu rutina.</p></section>
+          <section class="guia-panel" data-guia-panel="biceps" hidden><h3>Bíceps</h3><p class="guia-ayuda">La lámina ilustrada de bíceps está pendiente. Los ejercicios ya se pueden elegir desde el catálogo de tu rutina.</p></section>
+          <section class="guia-panel" data-guia-panel="triceps" hidden><h3>Tríceps</h3><p class="guia-ayuda">La lámina ilustrada de tríceps está pendiente. Los ejercicios ya se pueden elegir desde el catálogo de tu rutina.</p></section>
+          <section class="guia-panel" data-guia-panel="antebrazos" hidden><h3>Antebrazos</h3><p class="guia-ayuda">La lámina ilustrada de antebrazos está pendiente. Los ejercicios ya se pueden elegir desde el catálogo de tu rutina.</p></section>
+          <section class="guia-panel" data-guia-panel="abdomen" hidden><h3>Abdomen</h3><p class="guia-ayuda">La lámina ilustrada de abdomen está pendiente. Los ejercicios ya se pueden elegir desde el catálogo de tu rutina.</p></section>
+                </div>
+              </div>
+            </details>
+
+            <details class="rutina ajustes-plegables" id="catalogoEjercicios">
+                <summary>📚 Catálogo de ejercicios <span class="indicador-ajustes" aria-hidden="true">⌄</span></summary>
+                <div class="contenido-ajustes">
+                    <p class="ayuda">Explora por músculo, subgrupo o equipo. Selecciona un ejercicio para agregarlo a tu rutina.</p>
+                    <label for="catalogoGrupo">Grupo muscular</label>
+                    <select id="catalogoGrupo"><option value="">Todos los grupos</option></select>
+                    <label for="catalogoSubgrupo">Subgrupo muscular</label>
+                    <select id="catalogoSubgrupo"><option value="">Todos los subgrupos</option></select>
+                    <label for="catalogoEquipo">Equipo</label>
+                    <select id="catalogoEquipo"><option value="">Todos los equipos</option><option>Mancuernas</option><option>Barra y pesos libres</option><option>Máquinas</option><option>Poleas</option><option>Peso corporal</option><option>Otros</option></select>
+                    <label for="catalogoBuscar">Buscar ejercicio</label>
+                    <input id="catalogoBuscar" type="search" placeholder="Ejemplo: hip thrust, pantorrilla..." autocomplete="off">
+                    <p id="catalogoCantidad" class="ayuda" role="status"></p>
+                    <div id="catalogoResultados" class="catalogo-resultados"></div>
+                </div>
+            </details>
+
+            <button id="alternarFormulario" type="button" class="boton-secundario" aria-expanded="false" aria-controls="formularioEjercicio">＋ Agregar ejercicio</button>
+            <div class="rutina" id="formularioEjercicio" hidden>
+                <h3>Nuevo ejercicio</h3>
 
                 <label for="ejercicio">Ejercicio:</label>
                 <input type="text" id="ejercicio"
@@ -58,38 +157,28 @@
                 <input type="number" id="repeticiones" min="1"
                        placeholder="Ejemplo: 10">
 
-                <label for="peso">Peso (kg):</label>
-                <input type="number" id="peso" min="0"
-                       step="0.5" placeholder="Ejemplo: 80">
+                <label for="peso">Peso de referencia:</label>
+                <div class="peso-con-unidad"><input type="number" id="peso" min="0" step="0.5" placeholder="Ejemplo: 80"><select id="unidadPesoEjercicio" aria-label="Unidad de peso de referencia"><option value="kg">kg</option><option value="lb">lb</option></select></div><p class="ayuda">Es un peso inicial. Durante el entrenamiento puedes escoger kg o lb en cada serie.</p>
 
                 <button id="guardarEjercicio">
                     + Agregar ejercicio a la rutina
                 </button>
             </div>
 
-            <h3>Ejercicios de esta rutina</h3>
-            <div id="listaEjercicios"></div>
+            <div id="seccionEjerciciosPlan">
+                <h3>Ejercicios de esta rutina</h3>
+                <div id="listaEjercicios"></div>
+            </div>
 
 <div class="rutina">
-    <button id="iniciarEntrenamiento">
-        ▶ Iniciar entrenamiento
-    </button>
-
-   
-<div id="sesionActiva" hidden>
-    <h3>💪 Entrenamiento en curso</h3>
-    <p id="tiempoInicio"></p>
-
-    <h3>Registrar mis series</h3>
-    <div id="registroSeries"></div>
-
-    <button id="finalizarEntrenamiento">
-        ✅ Finalizar entrenamiento
-    </button>
-</div>
-
-            ✅ Finalizar entrenamiento
-        </button>
+    <button id="iniciarEntrenamiento" type="button">▶ Iniciar entrenamiento</button>
+    <div id="sesionActiva" hidden>
+        <h3>💪 Entrenamiento en curso</h3>
+        <p id="tiempoInicio"></p>
+        <p class="ayuda">Puedes agregar ejercicios desde el formulario de arriba sin finalizar la sesión.</p>
+        <h3>Registrar mis series</h3>
+        <div id="registroSeries"></div>
+        <button id="finalizarEntrenamiento" type="button">✅ Finalizar entrenamiento</button>
     </div>
 </div>
 
@@ -98,31 +187,33 @@
             </button>
         </section>
    
-<h2>📅 Historial de entrenamientos</h2>
-<div id="historialEntrenamientos"></div>
-
-<section class="rutina" id="seccionProgreso">
-    <h2>📈 Mi progreso</h2>
-
-    <label for="seleccionarEjercicio">
-        Selecciona un ejercicio:
-    </label>
-
-    <select id="seleccionarEjercicio">
-        <option value="">Seleccionar ejercicio</option>
-    </select>
-
-    <div id="resumenProgreso"></div>
-
-    <div class="contenedor-grafica">
-        <canvas id="graficaProgreso"></canvas>
+<details class="rutina ajustes-plegables" id="seccionHistorial">
+    <summary>📅 Historial de entrenamientos <span class="indicador-ajustes" aria-hidden="true">⌄</span></summary>
+    <div class="contenido-ajustes" id="contenidoHistorial">
+        <div id="historialEntrenamientos"></div>
     </div>
+</details>
 
-    <p id="mensajeProgreso"></p>
-</section>
 
-<section class="rutina" id="seccionRespaldo">
-    <h2>💾 Copia de seguridad</h2>
+<details class="rutina ajustes-plegables" id="seccionProgreso">
+    <summary>📈 Mi progreso <span class="indicador-ajustes" aria-hidden="true">⌄</span></summary>
+    <div class="contenido-ajustes">
+        <label for="seleccionarEjercicio">Selecciona un ejercicio:</label>
+        <select id="seleccionarEjercicio">
+            <option value="">Seleccionar ejercicio</option>
+        </select>
+        <div id="resumenProgreso"></div>
+        <div class="contenedor-grafica">
+            <canvas id="graficaProgreso"></canvas>
+        </div>
+        <p id="mensajeProgreso"></p>
+    </div>
+</details>
+
+<details class="rutina ajustes-plegables" id="seccionAjustes">
+    <summary>⚙️ Ajustes <span class="indicador-ajustes" aria-hidden="true">⌄</span></summary>
+    <section id="seccionRespaldo" class="contenido-ajustes">
+        <h3>💾 Copias de seguridad</h3>
 
     <p>
         Guarda tus rutinas, ejercicios e historial
@@ -148,10 +239,11 @@
     </button>
 
     <p id="mensajeRespaldo" role="status"></p>
-</section>
+    </section>
+</details>
 
  </main>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="app.js?v=2"></script>
+    <script src="app.js?v=15"></script>
 </body>
 </html>

@@ -323,3 +323,264 @@ input:focus {
 .boton-eliminar:hover {
     background-color: #b91c1c;
 }
+
+/* Mejoras de sesión v3 */
+.configuracion-unidad select {width:100%;padding:14px;border-radius:10px;background:#0f172a;color:white;border:1px solid #475569;font-size:16px}
+.ayuda {color:#cbd5e1;font-size:14px;line-height:1.5}
+.encabezado-ejercicio {text-align:left;background:#334155;margin-bottom:12px;line-height:1.4}
+.encabezado-ejercicio:hover {background:#475569}
+#registroSeries .rutina {padding:16px}
+#registroSeries .fila-serie {grid-template-columns:62px minmax(0,1fr) minmax(0,1fr) 35px;gap:6px}
+#registroSeries .fila-serie input[type=number] {padding:8px 3px}
+
+
+/* Vista de entrenamiento enfocada: solo la rutina abierta. */
+main.modo-rutina > :not(#detalleRutina) { display: none !important; }
+#detalleRutina > #alternarFormulario { margin-bottom: 14px; }
+.boton-secundario { background: #334155; }
+.boton-secundario:hover { background: #475569; }
+#listaEjercicios .rutina { padding: 14px 16px; }
+#listaEjercicios .rutina h3 { margin: 0 0 6px; }
+#listaEjercicios .rutina p { margin: 6px 0; padding: 4px 0; }
+#listaEjercicios .rutina button { padding: 10px; font-size: 14px; }
+
+/* Unidad por ejercicio y por serie (v5) */
+.peso-con-unidad {display:grid;grid-template-columns:minmax(0,1fr) 84px;gap:8px;align-items:start}
+.peso-con-unidad input {min-width:0}
+.peso-con-unidad select,.selector-unidad-serie {padding:12px 5px;border:1px solid #475569;border-radius:10px;background:#0f172a;color:#fff;font-size:15px}
+#registroSeries .fila-serie {grid-template-columns:52px minmax(0,1fr) 58px minmax(0,1fr) 28px;gap:5px}
+#registroSeries .fila-serie .selector-unidad-serie {width:100%;min-width:0;padding:9px 2px;font-size:14px}
+#registroSeries .fila-serie input[type="number"] {width:100%;padding:8px 2px}
+@media (max-width:400px) {#registroSeries .fila-serie {grid-template-columns:43px minmax(0,1fr) 51px minmax(0,1fr) 25px;gap:3px}#registroSeries .fila-serie span {font-size:11px}}
+
+/* Ajustes plegables (v6): el contenido no ocupa espacio mientras está cerrado */
+.ajustes-plegables {padding:0;overflow:hidden;}
+.ajustes-plegables > summary {display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:22px 25px;font-size:21px;font-weight:700;color:#fff;list-style:none;}
+.ajustes-plegables > summary::-webkit-details-marker {display:none;}
+.ajustes-plegables > summary:focus-visible {outline:2px solid #60a5fa;outline-offset:-4px;}
+.ajustes-plegables .indicador-ajustes {font-size:25px;line-height:1;color:#93c5fd;transition:transform .2s;}
+.ajustes-plegables[open] .indicador-ajustes {transform:rotate(180deg);}
+.contenido-ajustes {border-top:1px solid #334155;padding:8px 25px 25px;}
+.contenido-ajustes h3 {margin-top:15px;}
+
+/* Mi progreso plegable (v7): misma presentación compacta que Ajustes */
+#seccionProgreso { margin-top: 0; }
+#seccionProgreso .contenido-ajustes { padding-top: 12px; }
+#seccionProgreso .contenedor-grafica { height: 260px; }
+
+/* v8: Rutinas guardadas e historial compactos */
+#seccionRutinasGuardadas, #seccionHistorial { margin-top: 0; }
+#seccionRutinasGuardadas .contenido-ajustes,
+#seccionHistorial .contenido-ajustes { padding-top: 16px; }
+#seccionRutinasGuardadas #listaRutinas .rutina:last-child,
+#seccionHistorial #historialEntrenamientos .rutina:last-child { margin-bottom: 0; }
+#seccionHistorial .tarjeta-historial { padding: 0; overflow: hidden; }
+.sesion-historial-plegable > summary { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px; list-style: none; cursor: pointer; padding: 17px; }
+.sesion-historial-plegable > summary::-webkit-details-marker { display:none; }
+.sesion-historial-plegable > summary strong { grid-column: 1; font-size: 17px; color: #93c5fd; }
+.sesion-historial-plegable > summary span:not(.indicador-sesion) { grid-column: 1; color: #cbd5e1; font-size: 13px; }
+.sesion-historial-plegable > summary .indicador-sesion { grid-column: 2; grid-row: 1 / span 2; color: #93c5fd; font-size: 24px; transition: transform .2s; }
+.sesion-historial-plegable[open] > summary .indicador-sesion { transform: rotate(180deg); }
+.sesion-historial-plegable > summary:focus-visible { outline: 2px solid #60a5fa; outline-offset: -3px; }
+.contenido-sesion-historial { border-top: 1px solid #334155; padding: 8px 17px 17px; }
+.contenido-sesion-historial p { overflow-wrap: anywhere; }
+
+/* v9: catálogo plegable dentro de cada rutina */
+#catalogoEjercicios { margin-bottom: 15px; }
+#catalogoEjercicios select { width:100%;padding:13px;border:1px solid #475569;border-radius:10px;background:#0f172a;color:#fff;font-size:16px; }
+#catalogoEjercicios .contenido-ajustes {padding-top:14px;}
+.catalogo-resultados {display:grid;gap:10px;max-height:460px;overflow-y:auto;padding-right:3px;}
+.catalogo-tarjeta {background:#0f172a;border:1px solid #334155;border-radius:12px;padding:12px;display:grid;gap:10px;}
+.catalogo-tarjeta strong,.catalogo-tarjeta small {display:block;overflow-wrap:anywhere;}
+.catalogo-tarjeta strong {color:#e2e8f0;font-size:15px;}
+.catalogo-tarjeta small {color:#94a3b8;margin-top:5px;line-height:1.4;}
+.catalogo-tarjeta button {padding:10px;font-size:14px;background:#2563eb;}
+
+/* v11: menú principal en tarjetas, no lista vertical.
+   El catálogo de ejercicios conserva su diseño anterior. */
+main {
+    max-width: 940px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 16px;
+    row-gap: 16px;
+    align-items: start;
+}
+main > h2,
+main > #detalleRutina,
+main > .rutina:not(.ajustes-plegables) {
+    grid-column: 1 / -1;
+}
+main > h2 {
+    margin: 0 0 2px;
+}
+main > .rutina,
+main > details.ajustes-plegables {
+    margin-bottom: 0;
+    min-width: 0;
+}
+main > details.ajustes-plegables {
+    grid-column: span 1;
+    width: 100%;
+    min-height: 116px;
+}
+main > details.ajustes-plegables > summary {
+    min-height: 116px;
+    font-size: 19px;
+    padding: 18px;
+    gap: 10px;
+    align-items: center;
+}
+main > details.ajustes-plegables[open] {
+    grid-column: 1 / -1;
+    min-height: 0;
+}
+main > details.ajustes-plegables[open] > summary {
+    min-height: 72px;
+}
+main > details.ajustes-plegables .contenido-ajustes {
+    padding-left: 18px;
+    padding-right: 18px;
+}
+@media (max-width: 520px) {
+    main {
+        padding: 0 14px;
+        column-gap: 10px;
+        row-gap: 10px;
+    }
+    main > details.ajustes-plegables {
+        min-height: 104px;
+    }
+    main > details.ajustes-plegables > summary {
+        min-height: 104px;
+        font-size: 15px;
+        padding: 13px;
+        gap: 6px;
+    }
+    main > details.ajustes-plegables .indicador-ajustes {
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+    main > details.ajustes-plegables[open] > summary {
+        min-height: 64px;
+    }
+}
+
+/* v12: guía visual, con láminas locales en HD */
+#seccionGuia .guia-contenido { padding-top: 16px; }
+.guia-ayuda { color: #cbd5e1; line-height: 1.5; font-size: 14px; }
+.guia-grupo { border: 1px solid #475569; background: #0f172a; border-radius: 14px; margin: 12px 0; overflow: hidden; }
+.guia-grupo > summary { cursor: pointer; padding: 16px; font-size: 17px; font-weight: bold; display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+.guia-grupo > summary span { color: #93c5fd; font-size: 13px; font-weight: normal; }
+.guia-grupo > summary:focus-visible, .guia-pendientes summary:focus-visible { outline: 2px solid #60a5fa; outline-offset: -2px; }
+.guia-laminas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 310px), 1fr)); gap: 14px; padding: 0 14px 14px; }
+.guia-lamina { min-width: 0; border-radius: 12px; overflow: hidden; background: #1e293b; padding: 12px; }
+.guia-lamina h3 { color: #93c5fd; font-size: 16px; margin: 0 0 12px; }
+.guia-lamina img { display: block; width: 100%; height: auto; border-radius: 9px; background: #0b1630; }
+.guia-lamina a { display: block; }
+.guia-lamina p { font-size: 12px; color: #cbd5e1; margin: 8px 0 0; padding: 0; border: none; }
+.guia-pendientes { margin: 0 14px 14px; padding: 12px; border: 1px solid #334155; border-radius: 12px; }
+.guia-pendientes summary { cursor: pointer; color: #93c5fd; font-weight: bold; }
+.guia-pendientes ul { padding-left: 22px; line-height: 1.85; }
+.guia-gluteos { padding: 0 16px 16px; line-height: 1.65; }
+.guia-gluteos p { color: #cbd5e1; font-size: 14px; }
+.guia-gluteos ol { padding-left: 24px; }
+.guia-gluteos li { padding: 5px 0; }
+@media (max-width: 520px) {
+  .guia-grupo > summary { padding: 13px; font-size: 15px; }
+  .guia-laminas { grid-template-columns: 1fr; }
+}
+
+/* v13: guía accesible solo desde una rutina, con categorías en cuadrícula */
+#detalleRutina #seccionGuia { margin: 0 0 15px; }
+#detalleRutina #seccionGuia > summary { min-height: 64px; }
+.guia-grupos-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin: 16px 0 20px;
+}
+.guia-grupo-card {
+    width: 100%;
+    margin: 0;
+    min-width: 0;
+    min-height: 122px;
+    padding: 13px 7px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid #475569;
+    background: #17243a;
+    border-radius: 15px;
+    color: #e2e8f0;
+    text-align: center;
+}
+.guia-grupo-card:hover { background: #243957; }
+.guia-grupo-card.activo { background: #1b3e69; border-color: #60a5fa; box-shadow: inset 0 0 0 1px #60a5fa; }
+.guia-grupo-card:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
+.guia-card-icon { font-size: 26px; line-height: 1.2; }
+.guia-grupo-card strong { font-size: 15px; overflow-wrap: anywhere; }
+.guia-grupo-card small { font-size: 11px; color: #cbd5e1; }
+.guia-paneles { border-top: 1px solid #334155; padding-top: 14px; }
+.guia-panel h3 { color: #93c5fd; margin: 0 0 12px; }
+.guia-ejercicios-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin-top: 12px; }
+.guia-ejercicio-card { background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 14px; display: flex; gap: 10px; align-items: center; min-width: 0; }
+.guia-ejercicio-card strong { font-size: 14px; overflow-wrap: anywhere; }
+.guia-ej-num { color: #93c5fd; font-weight: bold; }
+#seccionGuia .guia-laminas { padding: 0 0 12px; }
+@media(max-width:600px) {
+    .guia-grupos-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; }
+    .guia-grupo-card { min-height: 106px; }
+    .guia-ejercicios-grid { grid-template-columns: 1fr; }
+}
+
+/* v14: vista independiente para las imágenes de cada grupo */
+body.guia-pantalla-abierta { overflow: hidden; }
+#guiaPantalla[hidden] { display:none !important; }
+#guiaPantalla {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 18px max(16px, calc((100vw - 1180px)/2)) 40px;
+    background: #10151f;
+    color: #fff;
+}
+.guia-barra-superior { display:flex; align-items:center; gap:18px; margin-bottom:24px; }
+.guia-barra-superior h3 { margin:0; color:#93c5fd; font-size:24px; }
+.guia-volver { width:auto; padding:12px 17px; font-size:15px; background:#253a54; }
+#guiaPantalla .guia-panel[data-guia-panel="pierna"] > h3 { display:none; }
+/* En Pierna se muestran solo las imágenes, sin lista ni texto complementario. */
+#guiaPantalla [data-guia-panel="pierna"] .guia-lamina > h3,
+#guiaPantalla [data-guia-panel="pierna"] .guia-lamina > p,
+#guiaPantalla [data-guia-panel="pierna"] .guia-pendientes { display:none; }
+#guiaPantalla [data-guia-panel="pierna"] .guia-laminas {
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%,480px),1fr));
+    gap:18px;
+    padding:0;
+}
+#guiaPantalla [data-guia-panel="pierna"] .guia-lamina {
+    margin:0;
+    padding:8px;
+    background:#1e293b;
+    border:1px solid #334155;
+}
+#guiaPantalla [data-guia-panel="pierna"] .guia-lamina img { width:100%; height:auto; }
+@media(max-width:600px) {
+    #guiaPantalla {padding:16px 12px 32px;}
+    .guia-barra-superior {gap:12px; margin-bottom:16px;}
+    .guia-barra-superior h3 {font-size:20px;}
+    .guia-volver {padding:11px 12px;font-size:13px;}
+    #guiaPantalla [data-guia-panel="pierna"] .guia-laminas {grid-template-columns:1fr;gap:14px;}
+}
+
+/* v15: guías ilustradas de glúteos y listado compacto de pierna pendiente */
+.guia-faltantes-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:12px;margin:12px 0}
+.guia-faltantes-grid article{background:#17243a;border:1px solid #475569;border-radius:12px;padding:13px;min-width:0}
+.guia-faltantes-grid h4{color:#93c5fd;margin:0 0 8px}
+.guia-faltantes-grid p{font-size:13px;color:#e2e8f0;margin:5px 0;padding:0;border:0}
+#seccionGuia .guia-lamina a{cursor:zoom-in}
