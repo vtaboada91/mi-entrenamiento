@@ -584,3 +584,30 @@ body.guia-pantalla-abierta { overflow: hidden; }
 .guia-faltantes-grid h4{color:#93c5fd;margin:0 0 8px}
 .guia-faltantes-grid p{font-size:13px;color:#e2e8f0;margin:5px 0;padding:0;border:0}
 #seccionGuia .guia-lamina a{cursor:zoom-in}
+
+#registroSeries .encabezado-ejercicio[data-estado="pendiente"] {
+    cursor: default;
+    opacity: 1;
+}
+#registroSeries .encabezado-ejercicio[data-estado="realizado"] { color: #86efac; }
+#registroSeries .encabezado-ejercicio[data-estado="no-realizado"] { color: #fca5a5; }
+#registroSeries .numero-serie {
+    margin: 0;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.acciones-ejercicio {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+.acciones-ejercicio button {
+    width: auto;
+    flex: 1 1 145px;
+    margin: 0;
+}
+.acciones-ejercicio button + button { background: #334155; }
+.sugerencia-carga { color: #bbf7d0; }
+.fecha-historial { text-transform: capitalize; }

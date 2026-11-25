@@ -10,6 +10,34 @@ const listaEjercicios = document.getElementById("listaEjercicios");
 let rutinas = [];
 let rutinaSeleccionada = null;
 
+const claveRespaldoAnterior = "respaldoAntesDeSesionV17";
+const clavesDatos = ["misRutinas", "historialGym", "entrenamientoActual", "ejercicios", "unidadPesoGym"];
+
+// Conservar los datos originales antes de que esta versión lea o actualice una sesión anterior.
+try {
+    if (!localStorage.getItem(claveRespaldoAnterior)) {
+        const datos = Object.fromEntries(clavesDatos.map(clave => [clave, localStorage.getItem(clave)]));
+        if (clavesDatos.slice(0, 4).some(clave => datos[clave] !== null)) {
+            const ejercicios = JSON.parse(datos.ejercicios);
+            const rutinasAnteriores = JSON.parse(datos.misRutinas) ??
+                (ejercicios?.length ? [{ id: "importada", nombre: "Mis ejercicios anteriores", ejercicios }] : []);
+            localStorage.setItem(claveRespaldoAnterior, JSON.stringify({
+                version: 1,
+                aplicacion: "Mi Entrenamiento",
+                fechaExportacion: new Date().toISOString(),
+                unidadPeso: datos.unidadPesoGym || "kg",
+                rutinas: rutinasAnteriores,
+                historial: JSON.parse(datos.historialGym) ?? [],
+                entrenamientoActual: JSON.parse(datos.entrenamientoActual)
+            }));
+        } else {
+            localStorage.setItem(claveRespaldoAnterior, "null");
+        }
+    }
+} catch (error) {
+    console.warn("No se pudo guardar el respaldo previo a la actualización.", error);
+}
+
 // Vista concentrada: al abrir una rutina se oculta el resto de la aplicación.
 const formularioEjercicio = document.getElementById("formularioEjercicio");
 const alternarFormulario = document.getElementById("alternarFormulario");
@@ -133,7 +161,8 @@ botonEliminar.textContent = "🗑️ Eliminar";
 botonEliminar.className = "boton-eliminar";
 
 botonEliminar.addEventListener("click", function() {
-    if (entrenamientoActual && entrenamientoActual.rutinaId === rutina.id) {
+    if (entrenamientoActual && (entrenamientoActual.rutinaId === rutina.id ||
+        (!entrenamientoActual.rutinaId && entrenamientoActual.rutina === rutina.nombre))) {
         alert("Finaliza el entrenamiento en curso antes de eliminar esta rutina.");
         return;
     }
@@ -241,25 +270,24 @@ document.getElementById("guardarEjercicio")
         return;
     }
 
-    rutinaSeleccionada.ejercicios.push({
+    const ejercicio = {
         nombre: nombre,
         series: series,
         repeticiones: repeticiones,
         peso: peso,
         unidadPeso: unidad
-    });
+    };
 
-    guardarRutinas();
-    // Si la sesión de esta rutina ya comenzó, incorporar el nuevo ejercicio ahora.
-    if (entrenamientoActual && entrenamientoActual.rutinaId === rutinaSeleccionada.id) {
-        entrenamientoActual.ejercicios.push(prepararSeries([
-            rutinaSeleccionada.ejercicios[rutinaSeleccionada.ejercicios.length - 1]
-        ])[0]);
+    if (sesionDeRutinaSeleccionada()) {
+        entrenamientoActual.ejercicios.push(prepararSeries([{ ...ejercicio, temporal: true }])[0]);
         guardarSesionActual();
-        actualizarSesion();
+        mostrarRegistroSeries();
+    } else {
+        rutinaSeleccionada.ejercicios.push(ejercicio);
+        guardarRutinas();
+        mostrarEjercicios();
+        mostrarRutinas();
     }
-    mostrarEjercicios();
-    mostrarRutinas();
 
     document.getElementById("ejercicio").value = "";
     document.getElementById("series").value = "";
@@ -290,7 +318,7 @@ function mostrarEjercicios() {
         eliminar.textContent = "Eliminar ejercicio";
 
         eliminar.addEventListener("click", function() {
-            if (entrenamientoActual && entrenamientoActual.rutinaId === rutinaSeleccionada.id) {
+            if (sesionDeRutinaSeleccionada()) {
                 alert("Durante una sesión puedes añadir ejercicios. Para quitar uno del plan, termina primero la sesión.");
                 return;
             }
@@ -327,6 +355,9 @@ mostrarRutinas();
 
 const botonIniciar = document.getElementById("iniciarEntrenamiento");
 const botonFinalizar = document.getElementById("finalizarEntrenamiento");
+const botonRepetir = document.getElementById("repetirEntrenamiento");
+const resumenSesion = document.getElementById("resumenSesion");
+const botonGuardarEjercicio = document.getElementById("guardarEjercicio");
 const sesionActiva = document.getElementById("sesionActiva");
 const tiempoInicio = document.getElementById("tiempoInicio");
 const registroSeries = document.getElementById("registroSeries");
@@ -359,71 +390,122 @@ function guardarSesionActual() {
     );
 }
 
-// Crear estructura de series individuales
-function prepararSeries(ejercicios) {
+function sesionDeRutinaSeleccionada() {
+    return Boolean(entrenamientoActual && rutinaSeleccionada && (
+        entrenamientoActual.rutinaId === rutinaSeleccionada.id ||
+        (!entrenamientoActual.rutinaId && entrenamientoActual.rutina === rutinaSeleccionada.nombre)
+    ));
+}
+
+function estadoGuardado(ejercicio) {
+    if (ejercicio.estado) return ejercicio.estado;
+    return ejercicio.seriesRealizadas?.some(serie => serie.completada) ? "realizado" : "no-realizado";
+}
+
+function historialReciente() {
+    return [...historial].reverse().sort((a, b) => new Date(b.inicio) - new Date(a.inicio));
+}
+
+function registrosAnteriores(ejercicio) {
+    const nombre = ejercicio.nombre.trim().toLowerCase();
+    return historialReciente().flatMap(sesion => {
+        const registro = sesion.ejercicios?.find(item => item.nombre.trim().toLowerCase() === nombre);
+        return registro ? [registro] : [];
+    });
+}
+
+function seriesAnteriores(registros) {
+    const ultimo = registros.find(registro => estadoGuardado(registro) === "realizado" &&
+        registro.seriesRealizadas?.some(serie => serie.completada));
+    return ultimo?.seriesRealizadas ?? [];
+}
+
+function sugerirAumento(ejercicio, registros) {
+    if (registros.length < 2) return false;
+
+    // Comparar dos intentos consecutivos del mismo ejercicio con el objetivo planificado.
+    const [ultimo, anterior] = registros;
+    return [ultimo, anterior].every(registro =>
+        estadoGuardado(registro) === "realizado" &&
+        registro.seriesRealizadas?.length >= ejercicio.series &&
+        registro.seriesRealizadas.slice(0, ejercicio.series).every((serie, indice) => {
+            const pesoAnterior = anterior.seriesRealizadas?.[indice]?.peso;
+            return serie.completada && serie.repeticiones >= Math.max(ejercicio.repeticiones, registro.repeticiones) &&
+                serie.peso > 0 && serie.peso + 0.01 >= ejercicio.peso &&
+                Math.abs(serie.peso - pesoAnterior) < 0.01;
+        })
+    );
+}
+
+function prepararSeries(ejercicios, usarHistorial = true) {
     return ejercicios.map(function(ejercicio) {
+        const anteriores = usarHistorial ? seriesAnteriores(registrosAnteriores(ejercicio)) : [];
+        const { plegado, ...plan } = ejercicio;
         return {
-            ...ejercicio,
-            seriesRealizadas: Array.from(
-                { length: ejercicio.series },
-                function(_, indice) {
-                    return {
-                        numero: indice + 1,
-                        peso: ejercicio.peso,
-                        unidadPeso: unidadValida(ejercicio.unidadPeso),
-                        repeticiones: ejercicio.repeticiones,
-                        completada: false
-                    };
-                }
-            )
+            ...plan,
+            estado: "pendiente",
+            seriesRealizadas: Array.from({ length: ejercicio.series }, function(_, indice) {
+                const previa = anteriores[indice];
+                return {
+                    numero: indice + 1,
+                    peso: previa?.completada ? previa.peso : ejercicio.peso,
+                    unidadPeso: unidadValida(previa?.completada ? previa.unidadPeso || ejercicio.unidadPeso : ejercicio.unidadPeso),
+                    repeticiones: previa?.completada ? previa.repeticiones : ejercicio.repeticiones,
+                    completada: false
+                };
+            })
         };
     });
 }
 
-// Iniciar entrenamiento
-botonIniciar.addEventListener("click", function() {
-    if (!rutinaSeleccionada) return;
+function ultimaSesionRutina() {
+    if (!rutinaSeleccionada) return undefined;
+    return historialReciente().find(sesion => sesion.ejercicios?.length && (
+        sesion.rutinaId === rutinaSeleccionada.id ||
+        (!sesion.rutinaId && sesion.rutina === rutinaSeleccionada.nombre)
+    ));
+}
 
-    if (entrenamientoActual) {
-        alert("Ya tienes un entrenamiento en curso.");
-        return;
-    }
-
-    if (rutinaSeleccionada.ejercicios.length === 0) {
+function iniciarSesion(ejercicios) {
+    if (!rutinaSeleccionada || entrenamientoActual) return;
+    if (!ejercicios.length) {
         alert("Primero agrega ejercicios a tu rutina.");
         return;
     }
 
     entrenamientoActual = {
-        id: "sesion-" + Date.now(),
+        id: "sesion-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8),
         rutinaId: rutinaSeleccionada.id,
         rutina: rutinaSeleccionada.nombre,
         inicio: new Date().toISOString(),
-        ejercicios: prepararSeries(
-            rutinaSeleccionada.ejercicios
-        )
+        ejercicios: prepararSeries(ejercicios)
     };
 
     guardarSesionActual();
     actualizarSesion();
+}
+
+botonIniciar.addEventListener("click", () => {
+    if (rutinaSeleccionada) iniciarSesion(rutinaSeleccionada.ejercicios);
+});
+botonRepetir.addEventListener("click", () => {
+    const anterior = ultimaSesionRutina();
+    if (anterior) iniciarSesion(anterior.ejercicios);
 });
 
-// Mostrar entrenamiento en curso
 function actualizarSesion() {
     const activa = entrenamientoActual !== null;
-
-    // Mostrar la sesión solo dentro de la rutina correspondiente.
-    const mostrandoSesion = activa && rutinaSeleccionada && (
-        entrenamientoActual.rutinaId === rutinaSeleccionada.id ||
-        (!entrenamientoActual.rutinaId && entrenamientoActual.rutina === rutinaSeleccionada.nombre)
-    );
+    const mostrandoSesion = sesionDeRutinaSeleccionada();
     sesionActiva.hidden = !mostrandoSesion;
-    // Mientras se registran series mostramos solo las tarjetas editables,
-    // sin repetir todo el listado de ejercicios del plan.
-    document.getElementById("seccionEjerciciosPlan").hidden = Boolean(mostrandoSesion);
-    botonIniciar.hidden = Boolean(mostrandoSesion);
+    document.getElementById("seccionEjerciciosPlan").hidden = mostrandoSesion;
+    botonIniciar.hidden = mostrandoSesion;
     botonIniciar.disabled = activa;
     botonIniciar.textContent = activa ? "▶ Ya hay un entrenamiento en curso" : "▶ Iniciar entrenamiento";
+    botonRepetir.hidden = activa || !ultimaSesionRutina();
+    botonGuardarEjercicio.textContent = mostrandoSesion ? "＋ Agregar solo a esta sesión" : "＋ Agregar ejercicio a la rutina";
+    document.querySelectorAll(".catalogo-tarjeta button").forEach(boton => {
+        boton.textContent = mostrandoSesion ? "Usar en esta sesión" : "Usar en mi rutina";
+    });
 
     if (!mostrandoSesion) {
         registroSeries.innerHTML = "";
@@ -442,29 +524,41 @@ function actualizarSesion() {
 function mostrarRegistroSeries() {
     registroSeries.innerHTML = "";
 
-    entrenamientoActual.ejercicios.forEach(
-        function(ejercicio, indiceEjercicio) {
+    const realizados = entrenamientoActual.ejercicios.filter(e => e.estado === "realizado").length;
+    const omitidos = entrenamientoActual.ejercicios.filter(e => e.estado === "no-realizado").length;
+    const pendientes = entrenamientoActual.ejercicios.length - realizados - omitidos;
+    resumenSesion.textContent = `${realizados} realizados · ${omitidos} no realizados · ${pendientes} pendientes`;
 
+    entrenamientoActual.ejercicios.forEach(function(ejercicio, indice) {
         const tarjeta = document.createElement("div");
         tarjeta.className = "rutina";
 
+        const estado = ejercicio.estado || "pendiente";
+        const cerrado = estado !== "pendiente";
+        const plegado = cerrado && ejercicio.plegado !== false;
         const encabezado = document.createElement("button");
         encabezado.type = "button";
         encabezado.className = "encabezado-ejercicio";
-        const completas = ejercicio.seriesRealizadas.filter(s => s.completada).length;
-        const plegado = Array.isArray(entrenamientoActual.plegados) &&
-            entrenamientoActual.plegados.includes(indiceEjercicio);
-        encabezado.textContent = (plegado ? "▸ " : "▾ ") + ejercicio.nombre +
-            " (" + completas + "/" + ejercicio.seriesRealizadas.length + ")";
+        encabezado.dataset.estado = estado;
+        encabezado.disabled = !cerrado;
+        encabezado.setAttribute("aria-expanded", String(!plegado));
+
+        function actualizarEncabezado() {
+            const completas = ejercicio.seriesRealizadas.filter(serie => serie.completada).length;
+            const etiqueta = estado === "realizado" ? "✓ Realizado" :
+                estado === "no-realizado" ? "✗ No realizado" : "Pendiente";
+            const indicador = cerrado ? (plegado ? "▸ " : "▾ ") : "";
+            encabezado.textContent = `${indicador}${ejercicio.nombre} · ${etiqueta} (${completas}/${ejercicio.seriesRealizadas.length})`;
+        }
+
+        actualizarEncabezado();
         const contenido = document.createElement("div");
         contenido.hidden = plegado;
         encabezado.addEventListener("click", function() {
-            if (!Array.isArray(entrenamientoActual.plegados)) entrenamientoActual.plegados = [];
-            const idx = entrenamientoActual.plegados.indexOf(indiceEjercicio);
-            if (idx >= 0) entrenamientoActual.plegados.splice(idx, 1);
-            else entrenamientoActual.plegados.push(indiceEjercicio);
+            ejercicio.plegado = !plegado;
             guardarSesionActual();
             mostrarRegistroSeries();
+            registroSeries.querySelectorAll(".encabezado-ejercicio")[indice].focus();
         });
         tarjeta.appendChild(encabezado);
 
@@ -473,49 +567,27 @@ function mostrarRegistroSeries() {
             "Objetivo: " + ejercicio.series +
             " series × " + ejercicio.repeticiones +
             " repeticiones — " + pesoTexto(ejercicio.peso, ejercicio.unidadPeso);
-
         contenido.appendChild(objetivo);
 
-        // Buscar el último registro de este ejercicio
-        const sesionAnterior = [...historial].reverse().find(
-            function(sesion) {
-                return Array.isArray(sesion.ejercicios) &&
-                    sesion.ejercicios.some(function(e) {
-                        return e.nombre.trim().toLowerCase() ===
-                            ejercicio.nombre.trim().toLowerCase() &&
-                            Array.isArray(e.seriesRealizadas) &&
-                            e.seriesRealizadas.some(s => s.completada);
-                    });
-            }
-        );
-
-        if (sesionAnterior) {
-            const ejercicioAnterior =
-                sesionAnterior.ejercicios.find(function(e) {
-                    return e.nombre.trim().toLowerCase() ===
-                        ejercicio.nombre.trim().toLowerCase() &&
-                        Array.isArray(e.seriesRealizadas) &&
-                        e.seriesRealizadas.some(s => s.completada);
-                });
-
-            const anteriores = ejercicioAnterior.seriesRealizadas
-                .filter(serie => serie.completada);
-
+        const registros = registrosAnteriores(ejercicio);
+        const anteriores = seriesAnteriores(registros).filter(serie => serie.completada);
+        if (anteriores.length) {
             const referencia = document.createElement("div");
             referencia.className = "referencia-anterior";
+            const titulo = document.createElement("strong");
+            titulo.textContent = "📊 Último registro de este ejercicio";
+            const detalle = document.createElement("p");
+            detalle.textContent = anteriores.map(serie =>
+                pesoTexto(serie.peso, serie.unidadPeso) + " × " + serie.repeticiones + " reps"
+            ).join(" | ");
+            referencia.append(titulo, detalle);
 
-            const tituloAnterior = document.createElement("strong");
-            tituloAnterior.textContent = "📊 Último entrenamiento";
-
-            const detalleAnterior = document.createElement("p");
-            detalleAnterior.textContent = anteriores
-                .map(serie =>
-                    pesoTexto(serie.peso, serie.unidadPeso) + " × " +
-                    serie.repeticiones + " reps"
-                )
-                .join(" | ");
-
-            referencia.append(tituloAnterior, detalleAnterior);
+            if (sugerirAumento(ejercicio, registros)) {
+                const sugerencia = document.createElement("p");
+                sugerencia.className = "sugerencia-carga";
+                sugerencia.textContent = "Cumpliste el objetivo dos veces seguidas. Considera subir al siguiente peso disponible si puedes mantener la técnica.";
+                referencia.appendChild(sugerencia);
+            }
             contenido.appendChild(referencia);
         }
 
@@ -524,19 +596,23 @@ function mostrarRegistroSeries() {
             const fila = document.createElement("div");
             fila.className = "fila-serie";
 
-            const numero = document.createElement("span");
+            const numero = document.createElement("label");
+            numero.className = "numero-serie";
             numero.textContent = "Serie " + serie.numero;
 
             const campoPeso = document.createElement("input");
             campoPeso.type = "number";
             campoPeso.min = "0";
-            campoPeso.step = "0.5";
+            campoPeso.step = "any";
+            campoPeso.inputMode = "decimal";
+            campoPeso.disabled = cerrado;
             const unidadSerie = unidadValida(serie.unidadPeso || ejercicio.unidadPeso);
             campoPeso.value = aMostrar(serie.peso, unidadSerie);
             campoPeso.setAttribute("aria-label", "Peso de la serie " + serie.numero);
 
             const selectorSerie = document.createElement("select");
             selectorSerie.className = "selector-unidad-serie";
+            selectorSerie.disabled = cerrado;
             selectorSerie.setAttribute("aria-label", "Unidad de peso de la serie " + serie.numero);
             [["kg", "kg"], ["lb", "lb"]].forEach(function(opcion) {
                 const elemento = document.createElement("option");
@@ -561,12 +637,16 @@ function mostrarRegistroSeries() {
             campoReps.type = "number";
             campoReps.min = "0";
             campoReps.step = "1";
+            campoReps.inputMode = "numeric";
+            campoReps.disabled = cerrado;
             campoReps.value = serie.repeticiones;
             campoReps.setAttribute("aria-label", "Repeticiones");
 
             const completada = document.createElement("input");
             completada.type = "checkbox";
             completada.checked = serie.completada;
+            completada.disabled = cerrado;
+            completada.id = "serie-" + indice + "-" + serie.numero;
             completada.setAttribute(
                 "aria-label",
                 "Serie completada"
@@ -631,11 +711,10 @@ function mostrarRegistroSeries() {
                 serie.completada = completada.checked;
 
                 guardarSesionActual();
-                encabezado.textContent = (plegado ? "▸ " : "▾ ") + ejercicio.nombre +
-                    " (" + ejercicio.seriesRealizadas.filter(s => s.completada).length +
-                    "/" + ejercicio.seriesRealizadas.length + ")";
+                actualizarEncabezado();
             });
 
+            numero.htmlFor = completada.id;
             fila.appendChild(numero);
             fila.appendChild(campoPeso);
             fila.appendChild(selectorSerie);
@@ -645,6 +724,50 @@ function mostrarRegistroSeries() {
             contenido.appendChild(fila);
         });
 
+        const acciones = document.createElement("div");
+        acciones.className = "acciones-ejercicio";
+        function agregarAccion(texto, accion) {
+            const boton = document.createElement("button");
+            boton.type = "button";
+            boton.textContent = texto;
+            boton.addEventListener("click", accion);
+            acciones.appendChild(boton);
+        }
+
+        function cambiarEstado(siguiente) {
+            ejercicio.estado = siguiente;
+            ejercicio.plegado = siguiente !== "pendiente";
+            guardarSesionActual();
+            mostrarRegistroSeries();
+        }
+
+        if (cerrado) {
+            agregarAccion("Deshacer y editar", () => cambiarEstado("pendiente"));
+        } else {
+            agregarAccion("✓ Finalizar ejercicio", () => {
+                if (!ejercicio.seriesRealizadas.some(serie => serie.completada)) {
+                    alert("Marca al menos una serie como completada.");
+                    return;
+                }
+                cambiarEstado("realizado");
+            });
+            agregarAccion("✗ No realizado", () => {
+                if (ejercicio.seriesRealizadas.some(serie => serie.completada) &&
+                    !confirm("Este ejercicio ya tiene series marcadas. ¿Guardarlo como no realizado?")) return;
+                cambiarEstado("no-realizado");
+            });
+        }
+
+        if (ejercicio.temporal) {
+            agregarAccion("Quitar de esta sesión", () => {
+                if (ejercicio.seriesRealizadas.some(serie => serie.completada) &&
+                    !confirm("¿Quitar este ejercicio y sus series de la sesión?")) return;
+                entrenamientoActual.ejercicios = entrenamientoActual.ejercicios.filter(item => item !== ejercicio);
+                guardarSesionActual();
+                mostrarRegistroSeries();
+            });
+        }
+        contenido.appendChild(acciones);
         tarjeta.appendChild(contenido);
         registroSeries.appendChild(tarjeta);
     });
@@ -654,58 +777,50 @@ function mostrarRegistroSeries() {
 botonFinalizar.addEventListener("click", function() {
     if (!entrenamientoActual) return;
 
-    const total = entrenamientoActual.ejercicios.reduce(
-        function(acumulado, ejercicio) {
-            return acumulado + ejercicio.seriesRealizadas.length;
-        }, 0
-    );
-
-    const realizadas = entrenamientoActual.ejercicios.reduce(
-        function(acumulado, ejercicio) {
-            return acumulado +
-                ejercicio.seriesRealizadas.filter(
-                    serie => serie.completada
-                ).length;
-        }, 0
-    );
-
-    if (realizadas === 0) {
-        alert("Marca al menos una serie como completada.");
+    const ejercicios = entrenamientoActual.ejercicios.map(({ plegado, ...ejercicio }) => ({
+        ...ejercicio,
+        estado: ejercicio.estado === "pendiente" || !ejercicio.estado ?
+            (ejercicio.seriesRealizadas.some(serie => serie.completada) ? "realizado" : "no-realizado") :
+            ejercicio.estado
+    }));
+    const realizados = ejercicios.filter(e => e.estado === "realizado").length;
+    const omitidos = ejercicios.length - realizados;
+    if (!ejercicios.length) {
+        alert("Agrega al menos un ejercicio antes de guardar.");
         return;
     }
 
-    const confirmar = confirm(
-        "Completaste " + realizadas + " de " + total +
-        " series. ¿Finalizar y guardar?"
-    );
-
-    if (!confirmar) return;
+    if (!confirm(`Realizados: ${realizados}. No realizados: ${omitidos}. ¿Finalizar y guardar el entrenamiento?`)) return;
 
     const fin = new Date();
     const inicio = new Date(entrenamientoActual.inicio);
-
-    const duracion = Math.round(
-        (fin - inicio) / 60000
-    );
-
-    historial.push({
-        ...entrenamientoActual,
+    const sesion = {
+        id: entrenamientoActual.id,
+        rutinaId: entrenamientoActual.rutinaId ?? rutinaSeleccionada?.id,
+        rutina: entrenamientoActual.rutina,
+        inicio: entrenamientoActual.inicio,
+        ejercicios,
         fin: fin.toISOString(),
-        duracionMinutos: duracion
-    });
+        duracionMinutos: Math.max(0, Math.round((fin - inicio) / 60000))
+    };
+    const nuevoHistorial = historial.some(item => item.id && item.id === sesion.id) ? historial : [...historial, sesion];
 
-    localStorage.setItem(
-        "historialGym",
-        JSON.stringify(historial)
-    );
-
-    entrenamientoActual = null;
+    try {
+        localStorage.setItem("historialGym", JSON.stringify(nuevoHistorial));
+    } catch {
+        alert("No se pudo guardar el entrenamiento. La sesión sigue abierta.");
+        return;
+    }
+    historial = nuevoHistorial;
     localStorage.removeItem("entrenamientoActual");
+    entrenamientoActual = null;
 
     actualizarSesion();
     mostrarHistorial();
+    cargarSelectorProgreso();
+    mostrarGraficaProgreso();
 
-    alert("✅ ¡Entrenamiento guardado!");
+    alert(`Entrenamiento guardado. Realizados: ${realizados}. No realizados: ${omitidos}.`);
 });
 
 // Mostrar historial de entrenamientos: cada sesión es plegable por separado.
@@ -717,9 +832,19 @@ function mostrarHistorial() {
         return;
     }
 
-    [...historial].reverse().forEach(function(sesion) {
-        // Mantener .rutina como hijo directo preserva las opciones existentes
-        // de eliminar una sesión del historial.
+    let diaAnterior = null;
+    historialReciente().forEach(function(sesion) {
+        const inicio = new Date(sesion.inicio);
+        const dia = inicio.toLocaleDateString("es-MX", {
+            weekday: "long", year: "numeric", month: "long", day: "numeric"
+        });
+        if (dia !== diaAnterior) {
+            const fechaHistorial = document.createElement("h3");
+            fechaHistorial.className = "fecha-historial";
+            fechaHistorial.textContent = dia;
+            historialContenedor.appendChild(fechaHistorial);
+            diaAnterior = dia;
+        }
         const tarjeta = document.createElement("div");
         tarjeta.className = "rutina tarjeta-historial";
 
@@ -729,7 +854,10 @@ function mostrarHistorial() {
         const titulo = document.createElement("strong");
         titulo.textContent = sesion.rutina || "Entrenamiento";
         const fecha = document.createElement("span");
-        fecha.textContent = "📅 " + new Date(sesion.inicio).toLocaleString("es-MX");
+        const total = sesion.ejercicios?.length ?? 0;
+        const realizados = sesion.ejercicios?.filter(e => estadoGuardado(e) === "realizado").length ?? 0;
+        fecha.textContent = inicio.toLocaleTimeString("es-MX", { hour: "numeric", minute: "2-digit" }) +
+            ` · ${realizados} realizados · ${total - realizados} no realizados`;
         const indicador = document.createElement("span");
         indicador.className = "indicador-sesion";
         indicador.setAttribute("aria-hidden", "true");
@@ -747,10 +875,13 @@ function mostrarHistorial() {
             const detalle = document.createElement("p");
             if (Array.isArray(ejercicio.seriesRealizadas)) {
                 const completadas = ejercicio.seriesRealizadas.filter(serie => serie.completada);
-                detalle.textContent = ejercicio.nombre + ": " +
-                    (completadas.length ? completadas.map(serie =>
-                        pesoTexto(serie.peso, serie.unidadPeso) + " × " +
-                        serie.repeticiones + " reps").join(" | ") : "Sin series completadas");
+                if (estadoGuardado(ejercicio) === "no-realizado") {
+                    detalle.textContent = "✗ " + ejercicio.nombre + " · No realizado";
+                } else {
+                    detalle.textContent = "✓ " + ejercicio.nombre + " · " + completadas.map(serie =>
+                        pesoTexto(serie.peso, serie.unidadPeso || ejercicio.unidadPeso) + " × " +
+                        serie.repeticiones + " reps").join(" | ");
+                }
             } else {
                 detalle.textContent = ejercicio.nombre + ": " + ejercicio.series +
                     " × " + ejercicio.repeticiones + " — " +
@@ -758,6 +889,21 @@ function mostrarHistorial() {
             }
             contenido.appendChild(detalle);
         });
+
+        const borrar = document.createElement("button");
+        borrar.type = "button";
+        borrar.className = "borrar-sesion";
+        borrar.textContent = "🗑️ Eliminar entrenamiento";
+        borrar.addEventListener("click", () => {
+            if (!confirm("¿Eliminar este entrenamiento del historial?")) return;
+            const restantes = historial.filter(item => item !== sesion);
+            localStorage.setItem("historialGym", JSON.stringify(restantes));
+            historial = restantes;
+            mostrarHistorial();
+            cargarSelectorProgreso();
+            mostrarGraficaProgreso();
+        });
+        contenido.appendChild(borrar);
         desplegable.appendChild(contenido);
         tarjeta.appendChild(desplegable);
         historialContenedor.appendChild(tarjeta);
@@ -775,10 +921,10 @@ if (
                 return ejercicio;
             }
 
-            return prepararSeries([ejercicio])[0];
+            return prepararSeries([ejercicio], false)[0];
         });
 
-    guardarSesionActual();
+    // La sesión anterior se conserva en disco hasta que se registre un cambio.
 }
 
 actualizarSesion();
@@ -801,6 +947,7 @@ function obtenerEjerciciosProgreso() {
         if (!Array.isArray(sesion.ejercicios)) return;
 
         sesion.ejercicios.forEach(function(ejercicio) {
+            if (estadoGuardado(ejercicio) === "no-realizado") return;
             if (!Array.isArray(ejercicio.seriesRealizadas)) return;
 
             const tieneSeries = ejercicio.seriesRealizadas.some(
@@ -861,6 +1008,7 @@ function obtenerDatosProgreso(nombreEjercicio) {
                 nombreEjercicio.trim().toLowerCase()
             ) return;
 
+            if (estadoGuardado(ejercicio) === "no-realizado") return;
             if (!Array.isArray(ejercicio.seriesRealizadas)) return;
 
             ejercicio.seriesRealizadas.forEach(function(serie) {
@@ -1016,8 +1164,19 @@ botonExportar.addEventListener("click", function() {
         entrenamientoActual: entrenamientoActual
     };
 
-    const contenido = JSON.stringify(respaldo, null, 2);
+    descargarRespaldo(JSON.stringify(respaldo, null, 2), "mi-entrenamiento-respaldo.json");
+    mensajeRespaldo.textContent = "✅ Respaldo generado correctamente.";
+});
 
+const botonRespaldoAnterior = document.getElementById("exportarRespaldoAnterior");
+const respaldoAnterior = localStorage.getItem(claveRespaldoAnterior);
+botonRespaldoAnterior.hidden = !respaldoAnterior || respaldoAnterior === "null";
+botonRespaldoAnterior.addEventListener("click", () => {
+    descargarRespaldo(respaldoAnterior, "mi-entrenamiento-antes-de-actualizar.json");
+    mensajeRespaldo.textContent = "✅ Respaldo previo descargado.";
+});
+
+function descargarRespaldo(contenido, nombre) {
     const archivo = new Blob([contenido], {
         type: "application/json"
     });
@@ -1026,7 +1185,7 @@ botonExportar.addEventListener("click", function() {
     const enlace = document.createElement("a");
 
     enlace.href = url;
-    enlace.download = "mi-entrenamiento-respaldo.json";
+    enlace.download = nombre;
 
     document.body.appendChild(enlace);
     enlace.click();
@@ -1035,10 +1194,7 @@ botonExportar.addEventListener("click", function() {
     setTimeout(function() {
         URL.revokeObjectURL(url);
     }, 1000);
-
-    mensajeRespaldo.textContent =
-        "✅ Respaldo generado correctamente.";
-});
+}
 
 botonImportar.addEventListener("click", async function() {
     const archivo = archivoRespaldo.files[0];
@@ -1133,55 +1289,7 @@ botonImportar.addEventListener("click", async function() {
 /* PASO 14: ELIMINAR HISTORIAL Y REINICIAR APP */
 
 (function configurarBorrado() {
-  const contenedor = document.getElementById("historialEntrenamientos");
   const respaldo = document.getElementById("seccionRespaldo");
-
-  if (!contenedor || !respaldo) return;
-
-  function botonesHistorial() {
-    const tarjetas = contenedor.querySelectorAll(":scope > .rutina");
-
-    tarjetas.forEach((tarjeta, posicion) => {
-      if (tarjeta.querySelector(".borrar-sesion")) return;
-
-      const boton = document.createElement("button");
-      boton.type = "button";
-      boton.className = "borrar-sesion";
-      boton.textContent = "🗑️ Eliminar entrenamiento";
-
-      boton.addEventListener("click", () => {
-        let datos;
-        try {
-          datos = JSON.parse(localStorage.getItem("historialGym") || "[]");
-        } catch {
-          alert("No se pudo leer el historial.");
-          return;
-        }
-
-        if (!Array.isArray(datos)) return;
-
-        const indice = datos.length - 1 - posicion;
-        const sesion = datos[indice];
-        if (!sesion) return;
-
-        if (!confirm("¿Eliminar este entrenamiento del historial?")) return;
-
-        datos.splice(indice, 1);
-        localStorage.setItem("historialGym", JSON.stringify(datos));
-        location.reload();
-      });
-
-      // El botón de eliminar también queda oculto hasta abrir la sesión.
-      const contenido = tarjeta.querySelector(".contenido-sesion-historial");
-      (contenido || tarjeta).appendChild(boton);
-    });
-  }
-
-  botonesHistorial();
-
-  new MutationObserver(botonesHistorial).observe(contenedor, {
-    childList: true
-  });
 
   const botonReiniciar = document.createElement("button");
   botonReiniciar.type = "button";
@@ -1201,8 +1309,7 @@ botonImportar.addEventListener("click", async function() {
 
     if (respuesta !== "BORRAR") return;
 
-    ["misRutinas", "historialGym", "entrenamientoActual", "ejercicios", "unidadPesoGym"]
-      .forEach(clave => localStorage.removeItem(clave));
+    [...clavesDatos, claveRespaldoAnterior].forEach(clave => localStorage.removeItem(clave));
 
     location.reload();
   });
@@ -1258,7 +1365,7 @@ function actualizarCatalogo() {
         descripcion.append(titulo, metadatos);
         const boton = document.createElement('button');
         boton.type = 'button';
-        boton.textContent = 'Usar en mi rutina';
+        boton.textContent = sesionDeRutinaSeleccionada() ? 'Usar en esta sesión' : 'Usar en mi rutina';
         boton.addEventListener('click', () => {
             if (!rutinaSeleccionada) return;
             document.getElementById('ejercicio').value = e.nombre;

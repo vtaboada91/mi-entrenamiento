@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mi Entrenamiento</title>
-    <link rel="stylesheet" href="style.css?v=15">
+    <link rel="stylesheet" href="style.css?v=17">
 </head>
 <body>
 
@@ -172,10 +172,11 @@
 
 <div class="rutina">
     <button id="iniciarEntrenamiento" type="button">▶ Iniciar entrenamiento</button>
+    <button id="repetirEntrenamiento" class="boton-secundario" type="button" hidden>Repetir la última sesión de esta rutina</button>
     <div id="sesionActiva" hidden>
         <h3>💪 Entrenamiento en curso</h3>
         <p id="tiempoInicio"></p>
-        <p class="ayuda">Puedes agregar ejercicios desde el formulario de arriba sin finalizar la sesión.</p>
+        <p id="resumenSesion" role="status"></p>
         <h3>Registrar mis series</h3>
         <div id="registroSeries"></div>
         <button id="finalizarEntrenamiento" type="button">✅ Finalizar entrenamiento</button>
@@ -224,6 +225,10 @@
         📥 Exportar respaldo
     </button>
 
+    <button id="exportarRespaldoAnterior" class="boton-secundario" type="button" hidden>
+        Descargar respaldo anterior a la actualización
+    </button>
+
     <label for="archivoRespaldo">
         Seleccionar archivo de respaldo:
     </label>
@@ -244,6 +249,6 @@
 
  </main>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="app.js?v=15"></script>
+    <script src="app.js?v=17"></script>
 </body>
 </html>
