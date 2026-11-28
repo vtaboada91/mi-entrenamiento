@@ -1,6 +1,10 @@
 
 const nombreRutina = document.getElementById("nombreRutina");
 const crearRutina = document.getElementById("crearRutina");
+const formularioRutina = document.getElementById("formularioRutina");
+const selectorRutinaBase = document.getElementById("rutinaBase");
+const ejerciciosRutinaBase = document.getElementById("ejerciciosRutinaBase");
+const opcionesEjerciciosRutina = document.getElementById("opcionesEjerciciosRutina");
 const listaRutinas = document.getElementById("listaRutinas");
 
 const detalleRutina = document.getElementById("detalleRutina");
@@ -91,8 +95,8 @@ if (!localStorage.getItem("misRutinas")) {
     guardarRutinas();
 }
 
-function guardarRutinas() {
-    localStorage.setItem("misRutinas", JSON.stringify(rutinas));
+function guardarRutinas(datos = rutinas) {
+    localStorage.setItem("misRutinas", JSON.stringify(datos));
 }
 
 function mostrarRutinas() {
@@ -202,26 +206,89 @@ listaRutinas.appendChild(tarjeta);
     });
 }
 
-crearRutina.addEventListener("click", function() {
+crearRutina.addEventListener("click", () => {
+    const mostrar = formularioRutina.hidden;
+    formularioRutina.hidden = !mostrar;
+    crearRutina.setAttribute("aria-expanded", String(mostrar));
+    crearRutina.textContent = mostrar ? "Cancelar creación" : "+ Crear rutina";
+
+    formularioRutina.reset();
+    selectorRutinaBase.replaceChildren(new Option("Desde cero", ""));
+    if (mostrar) {
+        rutinas.forEach(rutina => selectorRutinaBase.add(new Option(rutina.nombre, rutina.id)));
+    }
+    ejerciciosRutinaBase.hidden = true;
+    opcionesEjerciciosRutina.replaceChildren();
+    if (mostrar) selectorRutinaBase.focus();
+});
+
+let ejerciciosParaCopiar = [];
+selectorRutinaBase.addEventListener("change", () => {
+    const base = rutinas.find(rutina => String(rutina.id) === selectorRutinaBase.value);
+    opcionesEjerciciosRutina.replaceChildren();
+    ejerciciosParaCopiar = [];
+    ejerciciosRutinaBase.hidden = !base;
+    if (!base) return;
+
+    ejerciciosParaCopiar = [...base.ejercicios];
+    const nombres = new Set(base.ejercicios.map(ejercicio => ejercicio.nombre.trim().toLowerCase()));
+    for (const sesion of historialReciente()) {
+        if (!sesionEsDeRutina(sesion, base)) continue;
+        for (const ejercicio of sesion.ejercicios ?? []) {
+            const nombre = ejercicio.nombre.trim().toLowerCase();
+            if (estadoGuardado(ejercicio) !== "realizado" || nombres.has(nombre)) continue;
+            ejerciciosParaCopiar.push(ejercicio);
+            nombres.add(nombre);
+        }
+    }
+
+    ejerciciosParaCopiar.forEach((ejercicio, indice) => {
+        const etiqueta = document.createElement("label");
+        const casilla = document.createElement("input");
+        casilla.type = "checkbox";
+        casilla.value = indice;
+        casilla.checked = indice < base.ejercicios.length;
+        const origen = casilla.checked ? "" : " · Del historial";
+        etiqueta.append(casilla, ejercicio.nombre + origen);
+        opcionesEjerciciosRutina.appendChild(etiqueta);
+    });
+    if (!ejerciciosParaCopiar.length) {
+        opcionesEjerciciosRutina.textContent = "Esta rutina todavía no tiene ejercicios.";
+    }
+});
+
+formularioRutina.addEventListener("submit", function(evento) {
+    evento.preventDefault();
     const nombre = nombreRutina.value.trim();
 
     if (nombre === "") {
         alert("Escribe el nombre de la rutina.");
+        nombreRutina.focus();
         return;
     }
 
+    const ejercicios = Array.from(opcionesEjerciciosRutina.querySelectorAll("input:checked"), casilla => {
+        const { nombre, series, repeticiones, peso, unidadPeso } = ejerciciosParaCopiar[Number(casilla.value)];
+        return { nombre, series, repeticiones, peso, unidadPeso };
+    });
     const nuevaRutina = {
         id: "rutina-" + Date.now() + "-" +
             Math.random().toString(36).slice(2, 8),
         nombre: nombre,
-        ejercicios: []
+        ejercicios
     };
 
-    rutinas.push(nuevaRutina);
-    guardarRutinas();
+    const nuevasRutinas = [...rutinas, nuevaRutina];
+    try {
+        guardarRutinas(nuevasRutinas);
+    } catch {
+        alert("No se pudo guardar la nueva rutina. Inténtalo de nuevo.");
+        return;
+    }
+    rutinas = nuevasRutinas;
     mostrarRutinas();
 
-    nombreRutina.value = "";
+    crearRutina.click();
     abrirRutina(nuevaRutina.id);
 });
 
@@ -458,12 +525,15 @@ function prepararSeries(ejercicios, usarHistorial = true) {
     });
 }
 
+function sesionEsDeRutina(sesion, rutina) {
+    return sesion.rutinaId === rutina.id ||
+        (!sesion.rutinaId && sesion.rutina === rutina.nombre);
+}
+
 function ultimaSesionRutina() {
     if (!rutinaSeleccionada) return undefined;
-    return historialReciente().find(sesion => sesion.ejercicios?.length && (
-        sesion.rutinaId === rutinaSeleccionada.id ||
-        (!sesion.rutinaId && sesion.rutina === rutinaSeleccionada.nombre)
-    ));
+    return historialReciente().find(sesion =>
+        sesion.ejercicios?.length && sesionEsDeRutina(sesion, rutinaSeleccionada));
 }
 
 function iniciarSesion(ejercicios) {

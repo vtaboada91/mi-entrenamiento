@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mi Entrenamiento</title>
-    <link rel="stylesheet" href="style.css?v=17">
+    <link rel="stylesheet" href="style.css?v=18">
 </head>
 <body>
 
@@ -18,22 +18,22 @@
         <h2>Mis rutinas</h2>
 
         <div class="rutina">
-            <h3>Crear nueva rutina</h3>
-
-            <label for="nombreRutina">
-                Nombre de la rutina:
-            </label>
-
-            <input
-                type="text"
-                id="nombreRutina"
-                placeholder="Ejemplo: Pecho y tríceps"
-                maxlength="60"
-            >
-
-            <button id="crearRutina">
+            <button id="crearRutina" type="button" aria-expanded="false" aria-controls="formularioRutina">
                 + Crear rutina
             </button>
+            <form id="formularioRutina" hidden>
+                <label for="rutinaBase">Empezar desde</label>
+                <select id="rutinaBase">
+                    <option value="">Desde cero</option>
+                </select>
+                <fieldset id="ejerciciosRutinaBase" hidden>
+                    <legend>Ejercicios para la nueva rutina</legend>
+                    <div id="opcionesEjerciciosRutina"></div>
+                </fieldset>
+                <label for="nombreRutina">Nombre de la nueva rutina</label>
+                <input type="text" id="nombreRutina" placeholder="Ejemplo: Pecho y tríceps" maxlength="60" required>
+                <button type="submit">Guardar nueva rutina</button>
+            </form>
         </div>
 
         <details class="rutina ajustes-plegables" id="seccionRutinasGuardadas">
@@ -249,6 +249,6 @@
 
  </main>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="app.js?v=17"></script>
+    <script src="app.js?v=18"></script>
 </body>
 </html>
